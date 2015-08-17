@@ -40,6 +40,11 @@ defmodule JSONPointerTest do
       # assert JSONPointer.compile( ["hello~bla", "test/bla"] ) == { :ok, "/hello~0bla/test~1bla" }
     end
 
+    test "ensure_list_size" do
+
+      assert JSONPointer.ensure_list_size( [], 1 ) == [nil]
+
+    end
 
     test "get" do
 
@@ -73,8 +78,18 @@ defmodule JSONPointerTest do
         "d" => %{ "e" => [ %{"a" => 3}, %{"b" => 4}, %{"c" => 5} ] }
       }
 
-      assert JSONPointer.set( %{"a"=>1}, "/a", 2)  == {:ok, %{"a"=>2}, 1 }
+      assert JSONPointer.set( %{"a"=>1}, "/a", 2) == {:ok, %{"a"=>2}, 1 }
+      assert JSONPointer.set( %{"a"=>%{"b"=>2}}, "/a/b", 3) == {:ok, %{"a"=>%{"b"=>3}}, 2 }
 
+      assert JSONPointer.set( %{}, "/a", 1) == {:ok, %{"a"=>1}, nil}
+      assert JSONPointer.set( %{}, "/a/b", 2) == {:ok, %{"a"=>%{"b"=>2}}, nil}
+
+      assert JSONPointer.set( [], "/0", "first") == {:ok, ["first"], nil }
+      assert JSONPointer.set( [], "/1", "second") == {:ok, [nil, "second"], nil }
+
+      assert JSONPointer.set( [], "/0/test", "expected" ) == {:ok, [ %{"test" => "expected"}], nil }
+      assert JSONPointer.set( %{}, "/0/test/0", "expected" ) == {:error, "invalid json pointer token 0 for map %{}", nil}
+      assert JSONPointer.set( [], "/0/test/1", "expected" ) == {:ok, [ %{"test" => [nil,"expected"]}], nil }
 
     end
 
