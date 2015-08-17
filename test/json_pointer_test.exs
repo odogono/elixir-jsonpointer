@@ -72,25 +72,34 @@ defmodule JSONPointerTest do
     end
 
     test "set" do
-      obj = %{
-        "a" => 1,
-        "b" => %{ "c" => 2 },
-        "d" => %{ "e" => [ %{"a" => 3}, %{"b" => 4}, %{"c" => 5} ] }
-      }
-
+      
       assert JSONPointer.set( %{"a"=>1}, "/a", 2) == {:ok, %{"a"=>2}, 1 }
       assert JSONPointer.set( %{"a"=>%{"b"=>2}}, "/a/b", 3) == {:ok, %{"a"=>%{"b"=>3}}, 2 }
-
+      #
       assert JSONPointer.set( %{}, "/a", 1) == {:ok, %{"a"=>1}, nil}
+      assert JSONPointer.set( %{"a"=>1}, "/a", 6) == {:ok, %{"a"=>6}, 1}
       assert JSONPointer.set( %{}, "/a/b", 2) == {:ok, %{"a"=>%{"b"=>2}}, nil}
-
+      #
       assert JSONPointer.set( [], "/0", "first") == {:ok, ["first"], nil }
       assert JSONPointer.set( [], "/1", "second") == {:ok, [nil, "second"], nil }
-
+      #
       assert JSONPointer.set( [], "/0/test", "expected" ) == {:ok, [ %{"test" => "expected"}], nil }
-      assert JSONPointer.set( %{}, "/0/test/0", "expected" ) == {:error, "invalid json pointer token 0 for map %{}", nil}
+
+      # NOTE: there is an argument that the below should raise, since it is intended that the first token
+      # is referencing an array index. but it still works
+      assert JSONPointer.set( %{}, "/0/test/0", "expected" ) == {:ok, %{"0" => %{"test" => ["expected"]}}, nil}
       assert JSONPointer.set( [], "/0/test/1", "expected" ) == {:ok, [ %{"test" => [nil,"expected"]}], nil }
 
+    end
+
+    test "remove" do
+      assert JSONPointer.remove( %{"example"=>"hello"}, "/example" ) == {:ok,%{},"hello"}
+      assert JSONPointer.remove( %{"a"=>%{"b"=>5}}, "/a/b" ) == {:ok,%{"a"=>%{}},5}
+      assert JSONPointer.remove( %{"a"=>%{"b"=>%{"c"=>"discard"}}}, "/a/b/c" ) == {:ok,%{"a"=>%{"b"=>%{}}},"discard"}
+      assert JSONPointer.remove( %{"a"=>%{"b"=>%{"c"=>"discard"}}}, "/a" ) == {:ok,%{}, %{"b" => %{"c" => "discard"}} }
+
+      assert JSONPointer.remove( ["alpha", "beta"], "/0" ) == {:ok, [nil,"beta"], "alpha"}
+      assert JSONPointer.remove( ["alpha", %{"beta"=>["c","d"]}], "/1/beta/0" ) == {:ok, ["alpha", %{"beta" => [nil, "d"]}], "c"}
     end
 
   end
