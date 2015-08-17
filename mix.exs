@@ -1,13 +1,19 @@
 defmodule JsonPointer.Mixfile do
   use Mix.Project
 
+  @version "1.0.0"
+
   def project do
     [app: :json_pointer,
-     version: "0.0.1",
+     name: "JSON Pointer",
+     version: @version,
      elixir: "~> 1.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps]
+     deps: deps
+     docs: [readme: "README.md", main: "README",
+            source_ref: "v#{@version}",
+            source_url: "https://github.com/odogono/json_pointer"]]
   end
 
   # Configuration for the OTP application
@@ -17,16 +23,13 @@ defmodule JsonPointer.Mixfile do
     [applications: [:logger]]
   end
 
-  # Dependencies can be Hex packages:
-  #
-  #   {:mydep, "~> 0.3.0"}
-  #
-  # Or git/path repositories:
-  #
-  #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
-  #
-  # Type `mix help deps` for more examples and options
   defp deps do
-    [{:poison, "~> 1.4.0"}]
+    []
   end
+
+  defp package do
+    %{licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/odogono/json_pointer"}}
+  end
+
 end
