@@ -72,7 +72,17 @@ defmodule JSONPointer do
     val
   end
 
+  @doc """
+    Tests if an object has a value for a JSON pointer
+  """
+  def has( object, pointer ) do
+    case walk_container( :has, object, pointer, nil ) do
+      {:ok,_obj,_existing} -> true
+      {:error,_,_} -> false
+      value -> value
 
+    end
+  end
 
   @doc """
   Removes an attribute of object referenced by pointer
@@ -101,6 +111,16 @@ defmodule JSONPointer do
       {:ok, tokens} ->
         [token|tokens] = tokens
         walk_container( :set, nil, object, token, tokens, value )
+      {:error, reason} ->
+        {:error,reason}
+    end
+  end
+
+  defp walk_container(operation, object, pointer, value ) do
+    case JSONPointer.parse(pointer) do
+      {:ok, tokens} ->
+        [token|tokens] = tokens
+        walk_container( operation, nil, object, token, tokens, value )
       {:error, reason} ->
         {:error,reason}
     end
@@ -157,15 +177,40 @@ defmodule JSONPointer do
     end
   end
 
-  # no value for list, so we determine the container depending on the token
-  defp walk_container( operation, parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(parent) and list == nil do
+  # leaf operation: no value for list, so we determine the container depending on the token
+  defp walk_container(operation, parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(parent) and list == nil do
     case Integer.parse(token) do
       {index,_rem} ->
         {:ok, apply_into([], index, value), nil }
       :error ->
         {:ok, apply_into(%{}, token, value), nil }
     end
+  end
 
+  # leaf operation: does map have token?
+  defp walk_container(operation, parent, map, token, tokens, value) when operation == :has and tokens == [] and is_map(map) do
+    # IO.puts "does map #{inspect map} have #{token}"
+    case Map.fetch(map, token) do
+      {:ok,existing} ->
+        {:ok, nil, existing}
+      :error ->
+        {:error,nil,nil}
+    end
+  end
+
+  # leaf operation: does list have index?
+  defp walk_container(operation, parent, list, token, tokens, value) when operation == :has and tokens == [] and is_list(list) do
+    case Integer.parse(token) do
+      {index, _rem} ->
+        #
+        if (index < Enum.count(list) && Enum.at(list,index) != nil) do
+          {:ok,nil, Enum.at(list,index)}
+        else
+          {:error,nil,nil}
+        end
+      :error ->
+        false
+    end
   end
 
 
@@ -180,12 +225,21 @@ defmodule JSONPointer do
         # re-apply the altered tree back into our map
         {res,apply_into(map, token, sub),rem}
       :error ->
-        if operation == :set do
-          {res,sub,rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
-          {res,apply_into(map, token, sub),rem}
-        else
-          {:error, "json pointer key not found #{token} on #{inspect map}"}
+        case operation do
+          :set ->
+            {res,sub,rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
+            {res,apply_into(map, token, sub),rem}
+          :has ->
+            {res,sub,rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
+          _ ->
+            {:error, "json pointer key not found #{token} on #{inspect map}"}
         end
+
+        # if operation == :set do
+        #
+        # else
+        #
+        # end
     end
   end
 
@@ -217,12 +271,7 @@ defmodule JSONPointer do
     end
   end
 
-  @doc """
-    Tests if an object has a value for a JSON pointer
-  """
-  def has( object, pointer ) do
-    false
-  end
+
 
   @doc """
     Escapes a reference token
