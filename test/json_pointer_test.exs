@@ -23,10 +23,38 @@ defmodule JSONPointerTest do
       assert JSONPointer.get([],"/2/3") == {:error,"index 2 out of bounds in []"}
       assert JSONPointer.get(obj, "/d/e/3") ==
         {:error, "index 3 out of bounds in [%{\"a\" => 3}, %{\"b\" => 4}, %{\"c\" => 5}]"}
-      #
+
       assert JSONPointer.get(%{}, "") == {:ok, %{}}
 
-      assert JSONPointer.get(%{"200"=>%{"a":"b"}},"/200") == {:ok, %{"a" => "b"}}
+      assert JSONPointer.get(%{"200"=>%{"a" => "b"}},"/200") == {:ok, %{"a" => "b"}}
+    end
+
+    test "get fragment" do
+      obj = %{
+        "foo" => ["bar", "baz"],
+        "" => 0,
+        "a/b" => 1,
+        "c%d" => 2,
+        "e^f" => 3,
+        "g|h" => 4,
+        "i\\j" => 5,
+        "k\"l" => 6,
+        " " => 7,
+        "m~n" => 8 }
+
+      assert JSONPointer.get(obj, "#") == {:ok,obj}
+      assert JSONPointer.get(obj, "#/foo") == {:ok, ["bar", "baz"]}
+      assert JSONPointer.get(obj, "#/foo/0") == {:ok, "bar"}
+      assert JSONPointer.get(obj, "#/") == {:ok, 0}
+      assert JSONPointer.get(obj, "#/a~1b") == {:ok, 1}
+      assert JSONPointer.get(obj, "#/c%25d") == {:ok, 2}
+      assert JSONPointer.get(obj, "#/e%5Ef") == {:ok, 3}
+      assert JSONPointer.get(obj, "#/g%7Ch") == {:ok, 4}
+      assert JSONPointer.get(obj, "#/i%5Cj") == {:ok, 5}
+      assert JSONPointer.get(obj, "#/k%22l") == {:ok, 6}
+      assert JSONPointer.get(obj, "#/%20") == {:ok, 7}
+      assert JSONPointer.get(obj, "#/m~0n") == {:ok, 8}
+
     end
 
     test "set" do
@@ -86,7 +114,7 @@ defmodule JSONPointerTest do
 
 
     test "ensure_list_size" do
-      assert JSONPointer.ensure_list_size([], 1) == [nil]
+      assert JSONPointer.ensure_list_size([], 3) == [nil, nil, nil]
     end
 
   end

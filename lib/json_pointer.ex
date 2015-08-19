@@ -68,10 +68,17 @@ defmodule JSONPointer do
 
 
   # when an empty pointer has been provided, simply return the incoming object
-  defp walk_container(operation, object, "", value ) do
+  # @spec walk_container(atom, map | list, String.t, any ) :: any
+  defp walk_container(_operation, object, "", _value ) do
     {:ok, nil, object}
   end
 
+  defp walk_container(_operation, object, "#", _value ) do
+    {:ok, nil, object}
+  end
+
+  # begins the descent into a container using the specified pointer
+  # @spec walk_container( atom, map | list, String.t, any ) :: any
   defp walk_container(operation, object, pointer, value ) do
     case JSONPointer.parse(pointer) do
       {:ok, tokens} ->
@@ -83,7 +90,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: remove from map
-  defp walk_container( operation, parent, map, token, tokens, value ) when operation == :remove and tokens == [] and is_map(map) do
+  defp walk_container( operation, _parent, map, token, tokens, _value ) when operation == :remove and tokens == [] and is_map(map) do
       case Map.fetch( map, token ) do
         {:ok, existing} ->
           {:ok, Map.delete(map, token), existing}
@@ -93,7 +100,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: remove from list
-  defp walk_container( operation, parent, list, token, tokens, value ) when operation == :remove and tokens == [] and is_list(list) do
+  defp walk_container( operation, _parent, list, token, tokens, _value ) when operation == :remove and tokens == [] and is_list(list) do
     case Integer.parse(token) do
       {index,_rem} ->
         {:ok, apply_into(list, index, nil), Enum.at(list,index) }
@@ -103,7 +110,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: set token to value on a map
-  defp walk_container( operation, parent, map, token, tokens, value ) when operation == :set and tokens == [] and is_map(map) do
+  defp walk_container( operation, _parent, map, token, tokens, value ) when operation == :set and tokens == [] and is_map(map) do
       case Integer.parse(token) do
         {index,_rem} ->
             # the token turned out to be an array index, so convert the value into a list
@@ -120,7 +127,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: set token(index) to value on a list
-  defp walk_container( operation, parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(list) do
+  defp walk_container( operation, _parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(list) do
     case Integer.parse(token) do
       {index,_rem} ->
         {:ok, apply_into(list, index, value), Enum.at(list,index) }
@@ -140,7 +147,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: does map have token?
-  defp walk_container(operation, parent, map, token, tokens, value) when (operation == :has or operation == :get) and tokens == [] and is_map(map) do
+  defp walk_container(operation, _parent, map, token, tokens, _value) when (operation == :has or operation == :get) and tokens == [] and is_map(map) do
     case Map.fetch(map, token) do
       {:ok,existing} ->
         {:ok, nil, existing}
@@ -150,7 +157,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: does list have index?
-  defp walk_container(operation, parent, list, token, tokens, value) when (operation == :has or operation == :get) and tokens == [] and is_list(list) do
+  defp walk_container(operation, _parent, list, token, tokens, _value) when (operation == :has or operation == :get) and tokens == [] and is_list(list) do
     case Integer.parse(token) do
       {index, _rem} ->
         #
@@ -167,7 +174,7 @@ defmodule JSONPointer do
 
 
   # recursively walk through a map container
-  defp walk_container( operation, parent, map, token, tokens, value ) when is_map(map) do
+  defp walk_container( operation, _parent, map, token, tokens, value ) when is_map(map) do
     [sub_token|tokens] = tokens
     case Map.fetch(map, token) do
       {:ok, existing} ->
@@ -184,7 +191,7 @@ defmodule JSONPointer do
             {res,sub,rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
             {res,apply_into(map, token, sub),rem}
           :has ->
-            {res,sub,rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
+            {_res,_sub,_rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
           _ ->
             {:error, "json pointer key not found #{token} on #{inspect map}"}
         end
@@ -192,7 +199,7 @@ defmodule JSONPointer do
   end
 
   # recursively walk through a list container
-  defp walk_container( operation, parent, list, token, tokens, value ) when is_list(list) do
+  defp walk_container( operation, _parent, list, token, tokens, value ) when is_list(list) do
     [sub_token|tokens] = tokens
     case Integer.parse(token) do
       {index,_rem} ->
@@ -209,7 +216,7 @@ defmodule JSONPointer do
   end
 
   # when there is no container defined, use the type of token to decide one
-  defp walk_container( operation, parent, container, token, tokens, value ) when operation == :set and container == nil do
+  defp walk_container( operation, _parent, container, token, tokens, value ) when operation == :set and container == nil do
     [sub_token|tokens] = tokens
     case Integer.parse(token) do
       {index,_rem} ->
@@ -268,13 +275,20 @@ defmodule JSONPointer do
   def parse(""), do: {:ok,[]}
 
   def parse( pointer ) do
+
+    # handle a URI Fragment
+    if String.first(pointer) == "#", do: pointer = pointer |> String.lstrip(?#)
+
     case String.first(pointer) do
+
       "/" ->
         {:ok,
           pointer
           |> String.lstrip(?/)
           |> String.split("/")
+          |> Enum.map( &URI.decode/1 )
           |> Enum.map( &JSONPointer.unescape/1) }
+
 
       _ ->
         {:error, "invalid json pointer: #{pointer}"}
@@ -284,9 +298,11 @@ defmodule JSONPointer do
   end
 
 
+  @doc """
+  Ensures that the given list has size number of elements
+  """
   def ensure_list_size(list, size) do
     diff = size - Enum.count(list)
-    # IO.puts "ensure_list_size #{size} #{Enum.count(list)} ~ #{diff}"
     if diff > 0 do
       list = list ++ List.duplicate( nil, diff )
     end
