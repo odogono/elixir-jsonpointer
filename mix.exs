@@ -32,7 +32,7 @@ defmodule JsonPointer.Mixfile do
 
   defp description do
     """
-    This is an implementation of [JSON Pointer (RFC 6901)](http://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-08) for Elixir.
+    This is an implementation of JSON Pointer (RFC 6901) for Elixir.
     """
   end
 
