@@ -15,7 +15,7 @@ defmodule JsonPointer.Mixfile do
      start_permanent: Mix.env == :prod,
      docs: [readme: "README.md",
             source_ref: "v#{@version}",
-            source_url: "https://github.com/odogono/json_pointer"]]
+            source_url: "https://github.com/odogono/elixir-jsonpointer"]]
   end
 
   # Configuration for the OTP application
@@ -41,7 +41,7 @@ defmodule JsonPointer.Mixfile do
       name: "odgn_json_pointer",
       licenses: ["MIT"],
       maintainers: [ "Alexander Veenendaal" ],
-      links: %{"GitHub" => "https://github.com/odogono/json_pointer"},
+      links: %{"GitHub" => "https://github.com/odogono/elixir-jsonpointer"},
       files: [ "lib", "mix.exs", "README.md", "LICENSE"]
     ]
   end
