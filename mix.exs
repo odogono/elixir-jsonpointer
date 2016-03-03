@@ -28,13 +28,13 @@ defmodule JsonPointer.Mixfile do
       {:ex_doc, "~> 0.11", only: :dev}]
   end
 
-  defp description do
+  def description do
     """
-    An implementation of RFC 6901
+    This is an implementation of [JSON Pointer (RFC 6901)](http://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-08) for Elixir.
     """
   end
 
-  defp package do
+  def package do
     %{name: "odgn_json_pointer",
       licenses: ["MIT"],
       maintainers: [ "Alexander Veenendaal" ],
