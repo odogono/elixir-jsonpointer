@@ -6,11 +6,13 @@ defmodule JsonPointer.Mixfile do
   def project do
     [app: :json_pointer,
      name: "JSON Pointer",
+     description: description,
+     package: package,
+     deps: deps,
      version: @version,
      elixir: "~> 1.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps,
      docs: [readme: "README.md",
             source_ref: "v#{@version}",
             source_url: "https://github.com/odogono/json_pointer"]]
@@ -28,19 +30,20 @@ defmodule JsonPointer.Mixfile do
       {:ex_doc, "~> 0.11", only: :dev}]
   end
 
-  def description do
+  defp description do
     """
     This is an implementation of [JSON Pointer (RFC 6901)](http://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-08) for Elixir.
     """
   end
 
-  def package do
-    %{name: "odgn_json_pointer",
+  defp package do
+    [
+      name: "odgn_json_pointer",
       licenses: ["MIT"],
       maintainers: [ "Alexander Veenendaal" ],
       links: %{"GitHub" => "https://github.com/odogono/json_pointer"},
       files: [ "lib", "mix.exs", "README.md", "LICENSE"]
-    }
+    ]
   end
 
 end
