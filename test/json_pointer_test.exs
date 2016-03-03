@@ -28,6 +28,8 @@ defmodule JSONPointerTest do
       assert JSONPointer.get(%{}, "") == {:ok, %{}}
 
       assert JSONPointer.get(obj,"/200") == {:ok, %{"a" => "b"}}
+
+      assert JSONPointer.get(obj, ["d", "e", "1", "b"]) == {:ok, 4}
     end
 
     test "get URI fragment" do

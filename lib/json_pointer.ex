@@ -1,7 +1,7 @@
 defmodule JSONPointer do
 
   @type input :: map()
-  @type pointer :: String.t
+  @type pointer :: String.t | [String.t]
   @type t :: nil | true | false | list | float | integer | String.t | map
   @type msg :: String.t 
   @type existing :: t
@@ -127,7 +127,6 @@ defmodule JSONPointer do
 
 
   # when an empty pointer has been provided, simply return the incoming object
-  # @spec walk_container(atom, map | list, String.t, any ) :: any
   defp walk_container(_operation, object, "", _value ) do
     {:ok, object, nil}
   end
@@ -136,8 +135,14 @@ defmodule JSONPointer do
     {:ok, object, nil}
   end
 
+  # begins the descent into a container using the specified pointer  
+  defp walk_container(operation, object, pointer, value ) when is_list(pointer) do
+    [token|tokens] = pointer
+    walk_container( operation, nil, object, token, tokens, value )
+  end
+
+
   # begins the descent into a container using the specified pointer
-  # @spec walk_container( atom, map | list, String.t, any ) :: any
   defp walk_container(operation, object, pointer, value ) do
     case JSONPointer.parse(pointer) do
       {:ok, tokens} ->
