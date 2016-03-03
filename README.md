@@ -70,6 +70,7 @@ JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridg
 ## Ack
 
 inspiration from https://github.com/manuelstofer/json-pointer.git
+
 made without peeking (much) at the source of https://github.com/xavier/json_pointer
 
 Made in Exeter, UK.
