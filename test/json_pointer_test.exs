@@ -8,7 +8,8 @@ defmodule JSONPointerTest do
         "a" => 1,
         "b" => %{ "c" => 2 },
         "d" => %{ "e" => [ %{"a" => 3}, %{"b" => 4}, %{"c" => 5} ] },
-        "f" => [ 6, 7 ]
+        "f" => [ 6, 7 ],
+        "200" => %{ "a" => "b" }
       }
 
       assert JSONPointer.get(obj, "/a") == {:ok, 1}
@@ -19,14 +20,14 @@ defmodule JSONPointerTest do
       assert JSONPointer.get(obj, "/d/e/2/c") == {:ok, 5}
       assert JSONPointer.get(obj, "/f/0") == {:ok, 6}
 
-      assert JSONPointer.get([],"/2") == {:error,"list index out of bounds: 2", []}
-      assert JSONPointer.get([],"/2/3") == {:error,"list index out of bounds: 2", []}
+      assert JSONPointer.get([],"/2") == {:error,"list index out of bounds: 2"}
+      assert JSONPointer.get([],"/2/3") == {:error,"list index out of bounds: 2"}
       assert JSONPointer.get(obj, "/d/e/3") ==
-        {:error, "list index out of bounds: 3", obj["d"]["e"] }
+        {:error, "list index out of bounds: 3"}
 
       assert JSONPointer.get(%{}, "") == {:ok, %{}}
 
-      assert JSONPointer.get(%{"200"=>%{"a" => "b"}},"/200") == {:ok, %{"a" => "b"}}
+      assert JSONPointer.get(obj,"/200") == {:ok, %{"a" => "b"}}
     end
 
     test "get URI fragment" do
@@ -66,11 +67,11 @@ defmodule JSONPointerTest do
 
       assert JSONPointer.get(data, "/store/bicycle/**") == {:ok, %{"color" => "red", "price" => 19.95} }
       assert JSONPointer.get(data, "/store/**") == {:ok, data["store"] }
-      assert JSONPointer.get(data, "/store/**/**") == {:error, "token not found: **",[]} # TODO: should probably select all the fields?
+      assert JSONPointer.get(data, "/store/**/**") == {:error, "token not found: **"} # TODO: should probably select all the fields?
       assert JSONPointer.get(data, "/store/book/**") == {:ok, data["store"]["book"] }
       assert JSONPointer.get(data, "/store/book") == {:ok, data["store"]["book"] }
 
-      assert JSONPointer.get(data, "/**/nothing") == {:error, "token not found: nothing", []}
+      assert JSONPointer.get(data, "/**/nothing") == {:error, "token not found: nothing"}
 
       assert_raise ArgumentError, "token not found: newspaper", fn -> JSONPointer.get!(data, "/**/newspaper") end
     end
