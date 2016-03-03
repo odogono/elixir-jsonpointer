@@ -9,15 +9,15 @@ defmodule JSONPointer do
   """
   def get(obj, pointer) do
     case walk_container( :get, obj, pointer, nil ) do
-      {:ok,_,value} -> {:ok,value}
+      {:ok,value,_} -> {:ok,value}
       {:error,msg,value} -> {:error,msg,value}
     end
   end
 
   def get!(obj,pointer) do
     case walk_container( :get, obj, pointer, nil ) do
-      {:ok,_,value} -> value
-      {:error,msg,value} -> raise ArgumentError, message: msg
+      {:ok,value,_} -> value
+      {:error,msg,_} -> raise ArgumentError, message: msg
     end
   end
 
@@ -51,11 +51,8 @@ defmodule JSONPointer do
   end
 
 
-
-
-
   # set the list at index to val
-  defp apply_into( list, index, val ) when is_list(list) do
+  def apply_into( list, index, val ) when is_list(list) do
     if index do
       # ensure the list has the capacity for this index
       val = list |> ensure_list_size(index+1) |> List.replace_at(index, val)
@@ -65,8 +62,11 @@ defmodule JSONPointer do
 
 
   # set the key to val within a map
-  defp apply_into( map, key, val ) when is_map(map) do
+  def apply_into( map, key, val ) when is_map(map) do
     if key do
+      # if key == "price" and is_map(val) do
+      #   raise "not on! applying #{key} = #{inspect val}"
+      # end
       val = Map.put(map, key, val)
     end
     val
@@ -76,17 +76,17 @@ defmodule JSONPointer do
 
   # when an empty pointer has been provided, simply return the incoming object
   # @spec walk_container(atom, map | list, String.t, any ) :: any
-  defp walk_container(_operation, object, "", _value ) do
-    {:ok, nil, object}
+  def walk_container(_operation, object, "", _value ) do
+    {:ok, object, nil}
   end
 
-  defp walk_container(_operation, object, "#", _value ) do
-    {:ok, nil, object}
+  def walk_container(_operation, object, "#", _value ) do
+    {:ok, object, nil}
   end
 
   # begins the descent into a container using the specified pointer
   # @spec walk_container( atom, map | list, String.t, any ) :: any
-  defp walk_container(operation, object, pointer, value ) do
+  def walk_container(operation, object, pointer, value ) do
     case JSONPointer.parse(pointer) do
       {:ok, tokens} ->
         [token|tokens] = tokens
@@ -97,19 +97,24 @@ defmodule JSONPointer do
   end
 
   # leaf operation: remove from map
-  defp walk_container( operation, _parent, map, token, tokens, _value ) when operation == :remove and tokens == [] and is_map(map) do
-      case Map.fetch( map, token ) do
-        {:ok, existing} ->
-          {:ok, Map.delete(map, token), existing}
-        :error ->
-          {:error, "json pointer key not found %{token}", map}
+  def walk_container( operation, _parent, map, token, tokens, _value ) when operation == :remove and tokens == [] and is_map(map) do
+      if token == "**" do
+        {:ok, nil, map}
+      else
+        case Map.fetch( map, token ) do
+          {:ok, existing} ->
+            {:ok, Map.delete(map, token), existing}
+          :error ->
+            {:error, "json pointer key not found #{token}", map}
+        end
       end
   end
 
   # leaf operation: remove from list
-  defp walk_container( operation, _parent, list, token, tokens, _value ) when operation == :remove and tokens == [] and is_list(list) do
+  def walk_container( operation, _parent, list, token, tokens, _value ) when operation == :remove and tokens == [] and is_list(list) do
     case Integer.parse(token) do
       {index,_rem} ->
+# IO.puts "removing #{token} from #{inspect list}"
         {:ok, apply_into(list, index, nil), Enum.at(list,index) }
       :error ->
         {:error, "invalid json pointer invalid index #{token}", list}
@@ -117,7 +122,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: set token to value on a map
-  defp walk_container( operation, _parent, map, token, tokens, value ) when operation == :set and tokens == [] and is_map(map) do
+  def walk_container( operation, _parent, map, token, tokens, value ) when operation == :set and tokens == [] and is_map(map) do
       case Integer.parse(token) do
         {index,_rem} ->
             # the token turned out to be an array index, so convert the value into a list
@@ -132,8 +137,24 @@ defmodule JSONPointer do
       end
   end
 
+  # leaf operation: set wildcard to value on a list
+  def walk_container( operation, _parent, list, "**", tokens, value ) when operation == :set and tokens == [] and is_list(list) do
+    # IO.puts "not caught!"
+    # replace each entry in the list with the value
+    result = Enum.reduce(list, [], fn(_entry, acc) ->
+      acc ++ [value]
+      end)
+    {:ok, result, nil}
+  end
+
+
+  def walk_container( operation, parent, map, "**", tokens, value ) when operation == :set and tokens == [] and is_map(parent) do
+      {:ok, value, nil}
+  end
+
+
   # leaf operation: set token(index) to value on a list
-  defp walk_container( operation, _parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(list) do
+  def walk_container( operation, _parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(list) do
     case Integer.parse(token) do
       {index,_rem} ->
         {:ok, apply_into(list, index, value), Enum.at(list,index) }
@@ -143,7 +164,7 @@ defmodule JSONPointer do
   end
 
   # leaf operation: no value for list, so we determine the container depending on the token
-  defp walk_container(operation, parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(parent) and list == nil do
+  def walk_container(operation, parent, list, token, tokens, value ) when operation == :set and tokens == [] and is_list(parent) and list == nil do
     case Integer.parse(token) do
       {index,_rem} ->
         {:ok, apply_into([], index, value), nil }
@@ -153,13 +174,13 @@ defmodule JSONPointer do
   end
 
   # leaf operation: does map have token?
-  defp walk_container(operation, _parent, map, token, tokens, _value) when (operation == :has or operation == :get) and tokens == [] and is_map(map) do
+  def walk_container(operation, _parent, map, token, tokens, _value) when (operation == :has or operation == :get) and tokens == [] and is_map(map) do
     if token == "**" do
-      {:ok, nil, map}
+      {:ok, map, nil}
     else
       case Map.fetch(map, token) do
         {:ok,existing} ->
-          {:ok, nil, existing}
+          {:ok, existing, nil}
         :error ->
           {:error,"token not found #{token}", map}
       end
@@ -168,16 +189,16 @@ defmodule JSONPointer do
   end
 
   # leaf operation: does list have index?
-  defp walk_container(operation, _parent, list, token, tokens, _value) when (operation == :has or operation == :get) and tokens == [] and is_list(list) do
+  def walk_container(operation, _parent, list, token, tokens, _value) when (operation == :has or operation == :get) and tokens == [] and is_list(list) do
     if token == "**" do
-      {:ok, nil,list}
+      {:ok, list, nil}
     else
       case Integer.parse(token) do
         {index, _rem} ->
           if (index < Enum.count(list) && Enum.at(list,index) != nil) do
-            {:ok,nil, Enum.at(list,index)}
+            {:ok,Enum.at(list,index),nil}
           else
-            {:error,"index #{index} out of bounds", list}
+            {:error,"list index out of bounds: #{index}", list}
           end
         :error ->
           {:error,"token not found #{token}", list}
@@ -186,104 +207,253 @@ defmodule JSONPointer do
   end
 
 
-
   #
-  defp walk_container( operation, _parent, map, "**", tokens, value ) when is_map(map) do
+  def walk_container( operation, parent, map, "**", tokens, value ) when operation == :set and is_map(map) do
     [next_token|next_tokens] = tokens
+    # IO.puts "A/map wildcard to next #{next_token}/#{inspect next_tokens} - #{inspect Dict.keys(map)}"
     case Map.fetch(map, next_token) do
       {:ok, existing} ->
-        walk_container( operation, map, map, next_token, next_tokens, value)
+        # IO.puts "a/map/fetch #{inspect next_token} #{inspect map} #{inspect next_tokens}"
+        r = walk_container( operation, map, map, next_token, next_tokens, value)
+        # IO.puts "  - #{inspect r}"
+        r
       :error ->
-        map_res = Enum.reduce( Dict.keys(map), [], fn(map_key, acc) ->
+        # IO.puts "\t1 A/map/fetch #{next_token} - #{inspect Dict.keys(map)}"
+
+        result = Enum.reduce( map, %{}, fn({map_key,map_value}, result) ->
+          # IO.puts "\t1.5 #{inspect key} -> #{inspect value}"
           case walk_container( operation, map, Map.fetch!(map, map_key), "**", tokens, value) do
-              {:ok, _, walk_res} ->
-                case walk_res do
-                    r when is_list( walk_res ) -> acc ++ walk_res
-                    r -> acc ++ [walk_res]
+            {:ok,rval,res} ->
+              result = apply_into( result, map_key, rval )
+              # IO.puts "\t2 #{map_key} = #{inspect rval}"
+              result
+            {:error, msg, _value} ->
+              raise "error applying :set into map: #{msg}"
+              result
+          end
+        end)
+
+        {:ok, result, nil}
+    end
+  end
+
+  #
+  def walk_container( operation, parent, map, "**", tokens, value ) when is_map(map) do
+    [next_token|next_tokens] = tokens
+    # IO.puts "A/map wildcard to next #{next_token}/#{inspect next_tokens} - #{inspect Dict.keys(map)}"
+    case Map.fetch(map, next_token) do
+      {:ok, existing} ->
+        # IO.puts "a/map/fetch #{inspect next_token} #{inspect map} #{inspect next_tokens}"
+        r = walk_container( operation, map, map, next_token, next_tokens, value)
+        # IO.puts "  - #{inspect r}"
+        r
+      :error ->
+        # IO.puts "\t1 A/map/fetch #{next_token} - #{inspect Dict.keys(map)}"
+        result = Enum.reduce( Dict.keys(map), [], fn(map_key, acc) ->
+          # IO.puts "\t\t2 A/map/fetch #{inspect operation} #{map_key} #{inspect Map.fetch!(map, map_key)}, **, #{inspect tokens} #{inspect value}"
+          case walk_container( operation, map, Map.fetch!(map, map_key), "**", tokens, value) do
+              {:ok, walk_val, walk_res} ->
+                # IO.puts "\t\t3 A/map reduce-keys returned #{inspect walk_val}"
+                # walk_val = apply_into(map, map_key, walk_val)
+                # IO.puts "\t\t4 A/map reduce-keys :ok #{inspect map_key} = #{inspect walk_val} / #{inspect walk_res}"
+                # IO.puts "\t\tfrom #{inspect Dict.keys(map)}"
+                case walk_val do
+                    r when is_list( walk_val ) -> acc ++ walk_val
+                    r -> acc ++ [walk_val]
                 end
               {:error, msg, _value} -> acc
           end
-          end)
-        if List.first(map_res) == nil do
-          {:error, "token not found: #{next_token}", map_res}
+        end)
+
+        # IO.puts "\tA/map/reduce #{inspect Dict.keys(map)} = #{inspect result}\n"
+
+        if List.first(result) == nil do
+# IO.puts "here! #{next_token} #{inspect result}"
+          {:error, "token not found: #{next_token}", result}
         else
-          {:ok, nil, map_res }
+          {:ok, result, nil}
         end
     end
   end
 
-  defp walk_container( operation, _parent, list, "**", tokens, value ) when is_list(list) do
-    [next_token|_] = tokens
 
-    list_res = Enum.reduce(list, [], fn(entry, acc) ->
+
+  def walk_container( operation, _parent, list, "**", tokens, value ) when operation == :set and is_list(list) do
+    [next_token|next_tokens] = tokens
+    # IO.puts "B/list wildcard to next #{next_token}/#{inspect next_tokens}"
+    result = Enum.reduce(list, [], fn(entry, acc) ->
       case walk_container( operation, list, entry, "**", tokens, value) do
-        {:ok, _, walk_val} ->
+        {:ok, walk_val, original_val } ->
+          # IO.puts "B/list adding #{inspect walk_val} / #{inspect original_val}"
           acc ++ [ walk_val ]
-        {:error, msg, _value} -> acc
+        {:error, msg, _value} ->
+          acc
       end
       end)
 
-    list_res = {:ok, nil, list_res}
+    {:ok, result, nil}
   end
 
-  defp walk_container( operation, _parent, map, "**", tokens, value ) do
+
+  #
+  def walk_container( operation, _parent, list, "**", tokens, value ) when is_list(list) do
+    # [next_token|next_tokens] = tokens
+    result = Enum.reduce(list, [], fn(entry, acc) ->
+      case walk_container( operation, list, entry, "**", tokens, value) do
+        {:ok, walk_val, original_val } ->
+          # IO.puts "B/list adding #{inspect walk_val}"
+          acc ++ [ walk_val ]
+        {:error, msg, _value} ->
+          acc
+      end
+      end)
+    {:ok, result, nil}
+  end
+
+
+  #
+  def walk_container( operation, _parent, map, "**", tokens, value ) do
+    # IO.puts " #{inspect operation} #{inspect map} ** #{inspect tokens}"
     [next_token|_] = tokens
     {:error,"token not found #{next_token}", map}
   end
 
-  # recursively walk through a map container
-  defp walk_container( operation, _parent, map, token, tokens, value ) when is_map(map) do
-    [sub_token|tokens] = tokens
 
-    case Map.fetch(map, token) do
+  # recursively walk through a map container
+  def walk_container( operation, _parent, map, token, tokens, value ) when (operation == :set or operation == :remove) and is_map(map) do
+    # IO.puts "\twalk_container/map op=#{operation} | map=#{inspect Dict.keys(map)} | token=#{token} | tokens=#{inspect tokens}"
+    [next_token|next_tokens] = tokens
+
+    # IO.puts "finding #{token} in #{inspect map}"
+    # if is_list(map) do: IO.puts "not right!"
+    result = case Map.fetch(map, token) do
       {:ok, existing} ->
-        {res,sub,rem} = walk_container( operation, map, existing, sub_token, tokens, value)
+        # IO.puts "\t\t> walk_container map=#{inspect existing} | token=#{next_token} | tokens=#{inspect next_tokens}"
+        # catch the situation where the wildcard is the last token
+
+        # if next_token == "**" and next_tokens == [] do
+        #   IO.puts "special #{inspect existing}"
+        # end
+          # {res,sub} = {:ok,value}
+        # else
+          {res,sub,rem} = walk_container( operation, map, existing, next_token, next_tokens, value)
+        # end
+        # if next_token == "**" and next_tokens == [] do
+        #   IO.puts "special rem #{inspect rem}"
+        # end
+
         # re-apply the altered tree back into our map
+        # IO.puts "\t\t result for #{inspect next_token} - #{inspect sub} | #{inspect rem}"
         if res == :ok do
+          if next_token == "**" do
+            # IO.puts "wildcard fine!? #{token}/#{next_token}"
+            # IO.puts "CASE1 apply #{token}/#{next_token} = #{inspect sub} into #{inspect map}"
+            {res,apply_into(map, token, sub),rem}
+            # {res,sub,rem}
+          else
+            # {res,sub,rem}
+            # IO.puts "CASE2 apply #{token}/#{next_token} = #{inspect sub} into #{inspect map}"
+            {res,apply_into(map, token, sub),rem}
+          end
+        else
+          {res,sub,rem}
+        end
+      :error ->
+          {res,sub,rem} = walk_container( operation, map, %{}, next_token, next_tokens, value)
           {res,apply_into(map, token, sub),rem}
+    end
+    # IO.puts "\tresult/map #{inspect result}"
+    result
+  end
+
+  # recursively walk through a map container
+  def walk_container( operation, _parent, map, token, tokens, value ) when is_map(map) do
+    # IO.puts "\twalk_container/map op=#{operation} | map=#{inspect map} | token=#{token} | tokens=#{inspect tokens}"
+    [next_token|next_tokens] = tokens
+
+    result = case Map.fetch(map, token) do
+      {:ok, existing} ->
+        # IO.puts "?? walk into #{next_token} - #{inspect existing}"
+        # IO.puts "\t\t> walk_container map=#{inspect existing} | token=#{next_token} | tokens=#{inspect next_tokens}"
+        {res,sub,rem} = walk_container( operation, map, existing, next_token, next_tokens, value)
+        # re-apply the altered tree back into our map
+        # IO.puts "\t\t result for #{inspect next_token} - #{inspect sub} | #{inspect rem}"
+        if res == :ok do
+          if next_token == "**" do
+            {res,sub,rem}
+          else
+            {res,sub,rem}
+            # IO.puts "apply #{token} = #{inspect sub} for #{inspect map}"
+            # {res,apply_into(map, token, sub),rem}
+          end
         else
           {res,sub,rem}
         end
       :error ->
         case operation do
-          :set ->
-            {res,sub,rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
-            {res,apply_into(map, token, sub),rem}
           :has ->
-            {_res,_sub,_rem} = walk_container( operation, map, %{}, sub_token, tokens, value)
+            {_res,_sub,_rem} = walk_container( operation, map, %{}, next_token, next_tokens, value)
           _ ->
-            {:error, "json pointer key not found #{token} on #{inspect map}",map}
+            {:error, "json pointer key not found #{token}", map}
         end
     end
+    # IO.puts "\tresult/map #{inspect r}"
+    result
+  end
+
+  def walk_container( operation, _parent, list, token, tokens, value ) when (operation == :set or operation == :remove) and is_list(list) do
+    # IO.puts "\t\t\twalk_container/list op=#{operation} | list=#{inspect list} | token=#{token} | tokens=#{inspect tokens}"
+    [next_token|tokens] = tokens
+    result = case Integer.parse(token) do
+      {index,_rem} ->
+        if (operation == :get or operation == :has) and index >= Enum.count(list) do
+          {:error, "list index out of bounds: #{index}", list}
+        else
+          {res,sub,rem} = walk_container( operation, list, Enum.at(list,index), next_token, tokens, value)
+          # re-apply the returned result back into the current list - WHY!
+          # IO.puts "maybe we should apply #{index} = #{inspect sub}?"
+          {res, apply_into(list,index,sub), rem}
+          # {res,sub,rem}
+        end
+      _ ->
+        {:error, "invalid list index: #{token}", list}
+    end
+    # IO.puts "\tresult/list #{inspect result}"
+    result
   end
 
   # recursively walk through a list container
-  defp walk_container( operation, _parent, list, token, tokens, value ) when is_list(list) do
-    [sub_token|tokens] = tokens
-    case Integer.parse(token) do
+  def walk_container( operation, _parent, list, token, tokens, value ) when is_list(list) do
+    # IO.puts "\t\t\twalk_container/list op=#{operation} | map=#{inspect list} | token=#{token} | tokens=#{inspect tokens}"
+    [next_token|tokens] = tokens
+    result = case Integer.parse(token) do
       {index,_rem} ->
         if (operation == :get or operation == :has) and index >= Enum.count(list) do
-          {:error, "index #{index} out of bounds", list}
+          {:error, "list index out of bounds: #{index}", list}
         else
-          {res,sub,rem} = walk_container( operation, list, Enum.at(list,index), sub_token, tokens, value)
-          # re-apply the returned result back into the current list
-          {res, apply_into(list,index,sub), rem}
+          {res,sub,rem} = walk_container( operation, list, Enum.at(list,index), next_token, tokens, value)
+          # re-apply the returned result back into the current list - WHY!
+          # IO.puts "maybe we should apply #{index} = #{inspect sub}?"
+          # {res, apply_into(list,index,sub), rem}
+          {res,sub,rem}
         end
       _ ->
-        {:error, "token not found on list #{token}", list}
+        {:error, "invalid list index: #{token}", list}
     end
+    # IO.puts "\tresult/list #{inspect result}"
+    result
   end
 
   # when there is no container defined, use the type of token to decide one
-  defp walk_container( operation, _parent, container, token, tokens, value ) when operation == :set and container == nil do
-    [sub_token|tokens] = tokens
+  def walk_container( operation, _parent, container, token, tokens, value ) when operation == :set and container == nil do
+    [next_token|tokens] = tokens
     case Integer.parse(token) do
       {index,_rem} ->
-        {res,sub,rem} = walk_container( operation, [], [], sub_token, tokens, value)
+        {res,sub,rem} = walk_container( operation, [], [], next_token, tokens, value)
         # re-apply the returned result back into the current list
         {res, apply_into([],index,sub), rem}
       _ ->
-        {res,sub,rem} = walk_container( operation, %{}, %{}, sub_token, tokens, value)
+        {res,sub,rem} = walk_container( operation, %{}, %{}, next_token, tokens, value)
         # re-apply the returned result back into the current list
         {res, apply_into(%{},token,sub), rem}
     end
@@ -349,7 +519,6 @@ defmodule JSONPointer do
           |> String.split("/")
           |> Enum.map( &URI.decode/1 )
           |> Enum.map( &JSONPointer.unescape/1) }
-
 
       _ ->
         {:error, "invalid json pointer", pointer}

@@ -10,7 +10,7 @@ defmodule JsonPointer.Mixfile do
      elixir: "~> 1.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps
+     deps: deps,
      docs: [readme: "README.md", main: "README",
             source_ref: "v#{@version}",
             source_url: "https://github.com/odogono/json_pointer"]]

@@ -1,51 +1,14 @@
 defmodule JSONPointerTest do
   use ExUnit.Case
-  doctest JSONPointer
+  # doctest JSONPointer
 
-  def dataBookStore do
-    %{
-      "store" => %{
-        "book" => [
-          %{
-            "category" => "reference",
-            "author" => "Nigel Rees",
-            "title" => "Sayings of the Century",
-            "price" => 8.95
-          },
-          %{
-            "category" => "fiction",
-            "author" => "Evelyn Waugh",
-            "title" => "Sword of Honour",
-            "price" => 12.99
-          },
-          %{
-            "category" => "fiction",
-            "author" => "Herman Melville",
-            "title" => "Moby Dick",
-            "isbn" => "0-553-21311-3",
-            "price" => 8.99
-          },
-          %{
-            "category" => "fiction",
-            "author" => "J. R. R. Tolkien",
-            "title" => "The Lord of the Rings",
-            "isbn" => "0-395-19395-8",
-            "price" => 22.99
-          }
-        ],
-        "bicycle" => %{
-          "color" => "red",
-          "price" => 19.95
-        }
-    }}
-  end
 
     test "get" do
-
       obj = %{
         "a" => 1,
         "b" => %{ "c" => 2 },
-        "d" => %{ "e" => [ %{"a" => 3}, %{"b" => 4}, %{"c" => 5} ] }
+        "d" => %{ "e" => [ %{"a" => 3}, %{"b" => 4}, %{"c" => 5} ] },
+        "f" => [ 6, 7 ]
       }
 
       assert JSONPointer.get(obj, "/a") == {:ok, 1}
@@ -54,11 +17,12 @@ defmodule JSONPointerTest do
       assert JSONPointer.get(obj, "/d/e/0/a") == {:ok, 3}
       assert JSONPointer.get(obj, "/d/e/1/b") == {:ok, 4}
       assert JSONPointer.get(obj, "/d/e/2/c") == {:ok, 5}
+      assert JSONPointer.get(obj, "/f/0") == {:ok, 6}
 
-      assert JSONPointer.get([],"/2") == {:error,"index 2 out of bounds", []}
-      assert JSONPointer.get([],"/2/3") == {:error,"index 2 out of bounds", []}
+      assert JSONPointer.get([],"/2") == {:error,"list index out of bounds: 2", []}
+      assert JSONPointer.get([],"/2/3") == {:error,"list index out of bounds: 2", []}
       assert JSONPointer.get(obj, "/d/e/3") ==
-        {:error, "index 3 out of bounds", obj["d"]["e"] }
+        {:error, "list index out of bounds: 3", obj["d"]["e"] }
 
       assert JSONPointer.get(%{}, "") == {:ok, %{}}
 
@@ -94,7 +58,7 @@ defmodule JSONPointerTest do
     end
 
     test "get using wildcard" do
-      data = dataBookStore()
+      data = book_store_data()
       assert JSONPointer.get( data, "/store/bicycle/color") == {:ok, "red"}
       assert JSONPointer.get(data, "/store/book/**/price") == {:ok, [8.95, 12.99, 8.99, 22.99]} # "the prices of all books in the store"
       assert JSONPointer.get(data, "/**/author") == {:ok, ["Nigel Rees", "Evelyn Waugh", "Herman Melville", "J. R. R. Tolkien"]} # "all authors"
@@ -102,7 +66,9 @@ defmodule JSONPointerTest do
 
       assert JSONPointer.get(data, "/store/bicycle/**") == {:ok, %{"color" => "red", "price" => 19.95} }
       assert JSONPointer.get(data, "/store/**") == {:ok, data["store"] }
+      assert JSONPointer.get(data, "/store/**/**") == {:error, "token not found: **",[]} # TODO: should probably select all the fields?
       assert JSONPointer.get(data, "/store/book/**") == {:ok, data["store"]["book"] }
+      assert JSONPointer.get(data, "/store/book") == {:ok, data["store"]["book"] }
 
       assert JSONPointer.get(data, "/**/nothing") == {:error, "token not found: nothing", []}
 
@@ -119,13 +85,55 @@ defmodule JSONPointerTest do
 
       assert JSONPointer.set([], "/0", "first") == {:ok, ["first"], nil }
       assert JSONPointer.set([], "/1", "second") == {:ok, [nil, "second"], nil }
-      assert JSONPointer.set([], "/0/test", "expected" ) == {:ok, [ %{"test" => "expected"}], nil }
+      assert JSONPointer.set([], "/0/test", "prudent" ) == {:ok, [ %{"test" => "prudent"}], nil }
 
       # NOTE: there is an argument that the below should raise, since it is intended that the first token
       # is referencing an array index. but it still works
       assert JSONPointer.set(%{}, "/0/test/0", "expected" ) == {:ok, %{"0" => %{"test" => ["expected"]}}, nil}
       assert JSONPointer.set([], "/0/test/1", "expected" ) == {:ok, [%{"test" => [nil, "expected"]}], nil }
+    end
 
+    test "set using wildcard" do
+      data = book_store_data()
+
+      assert JSONPointer.set(data, "/store/book/**/author", "unknown")
+        == {:ok,%{"store" => %{"bicycle" => %{"color" => "red", "price" => 19.95},
+                "book" => [%{"author" => "unknown", "category" => "reference",
+                   "price" => 8.95, "title" => "Sayings of the Century"},
+                 %{"author" => "unknown", "category" => "fiction", "price" => 12.99, "title" => "Sword of Honour"},
+                 %{"author" => "unknown", "category" => "fiction",
+                   "isbn" => "0-553-21311-3", "price" => 8.99, "title" => "Moby Dick"},
+                 %{"author" => "unknown", "category" => "fiction", "isbn" => "0-395-19395-8", "price" => 22.99, "title" => "The Lord of the Rings"}
+            ]}}, nil}
+
+      # using a wildcard to replace all instances within a list
+      assert JSONPointer.set(data, "/store/book/**", %{"status"=>"recalled"})
+        == {:ok, %{"store" => %{
+            "bicycle" => %{"color" => "red", "price" => 19.95},
+            "book" => [
+              %{"status" => "recalled"}, %{"status" => "recalled"},
+                 %{"status" => "recalled"}, %{"status" => "recalled"}]}}, nil}
+
+      assert JSONPointer.set(data, "/store/book/**/price", 5.99)
+        == {:ok,
+          %{"store" =>
+            %{"bicycle" => %{"color" => "red", "price" => 19.95},
+            "book" => [
+              %{"author" => "Nigel Rees", "category" => "reference", "price" => 5.99, "title" => "Sayings of the Century"},
+              %{"author" => "Evelyn Waugh", "category" => "fiction", "price" => 5.99, "title" => "Sword of Honour"},
+              %{"author" => "Herman Melville", "category" => "fiction", "isbn" => "0-553-21311-3", "price" => 5.99, "title" => "Moby Dick"},
+              %{"author" => "J. R. R. Tolkien", "category" => "fiction", "isbn" => "0-395-19395-8", "price" => 5.99, "title" => "The Lord of the Rings"}
+            ]}}, nil}
+
+      assert JSONPointer.set(data, "/store/**/price", 34.95) == {:ok,
+        %{"store" =>
+          %{"bicycle" => %{"color" => "red", "price" => 34.95},
+            "book" => [
+            %{"author" => "Nigel Rees", "category" => "reference", "price" => 34.95, "title" => "Sayings of the Century"},
+            %{"author" => "Evelyn Waugh", "category" => "fiction", "price" => 34.95, "title" => "Sword of Honour"},
+            %{"author" => "Herman Melville", "category" => "fiction","isbn" => "0-553-21311-3", "price" => 34.95, "title" => "Moby Dick"},
+            %{"author" => "J. R. R. Tolkien", "category" => "fiction", "isbn" => "0-395-19395-8", "price" => 34.95,"title" => "The Lord of the Rings"}
+            ]}}, nil}
     end
 
     test "remove" do
@@ -136,6 +144,18 @@ defmodule JSONPointerTest do
 
       assert JSONPointer.remove(["alpha", "beta"], "/0") == {:ok, [nil,"beta"], "alpha"}
       assert JSONPointer.remove(["alpha", %{"beta"=>["c","d"]}], "/1/beta/0" ) == {:ok, ["alpha", %{"beta" => [nil, "d"]}], "c"}
+    end
+
+    test "remove using wildcard" do
+      obj = %{
+        "a" => %{ "b" => 2 },
+        "c" => [ %{"d"=>3}, %{"e"=>4} ],
+        "f" => 5,
+        "g" => [ %{"d"=>6}, %{"e"=>7}]
+      }
+
+      assert JSONPointer.remove(obj, "/a/**") == {:ok,
+        %{"a" => nil, "c" => [%{"d" => 3}, %{"e" => 4}], "f" => 5, "g" => [%{"d" => 6}, %{"e" => 7}]}, %{"b" => 2}}
     end
 
     test "has" do
@@ -161,8 +181,10 @@ defmodule JSONPointerTest do
       assert JSONPointer.parse("") == { :ok, [] }
       assert JSONPointer.parse("invalid") == { :error, "invalid json pointer", "invalid" }
       assert JSONPointer.parse("/some/where/over") == { :ok, [ "some", "where", "over" ] }
-      assert JSONPointer.parse("/hello~0bla/test~1bla") == { :ok, ["hello~bla","test/bla"] };
-      assert JSONPointer.parse("/~2") == { :ok, ["**"] };
+      assert JSONPointer.parse("/hello~0bla/test~1bla") == { :ok, ["hello~bla","test/bla"] }
+      assert JSONPointer.parse("/~2") == { :ok, ["**"] }
+
+      assert JSONPointer.parse("/initial/**/**") == {:ok, ["initial", "**", "**"]}
     end
 
 
@@ -170,5 +192,44 @@ defmodule JSONPointerTest do
       assert JSONPointer.ensure_list_size([], 3) == [nil, nil, nil]
     end
 
+
+    
+    def book_store_data() do
+      %{
+        "store" => %{
+          "book" => [
+            %{
+              "category" => "reference",
+              "author" => "Nigel Rees",
+              "title" => "Sayings of the Century",
+              "price" => 8.95
+            },
+            %{
+              "category" => "fiction",
+              "author" => "Evelyn Waugh",
+              "title" => "Sword of Honour",
+              "price" => 12.99
+            },
+            %{
+              "category" => "fiction",
+              "author" => "Herman Melville",
+              "title" => "Moby Dick",
+              "isbn" => "0-553-21311-3",
+              "price" => 8.99
+            },
+            %{
+              "category" => "fiction",
+              "author" => "J. R. R. Tolkien",
+              "title" => "The Lord of the Rings",
+              "isbn" => "0-395-19395-8",
+              "price" => 22.99
+            }
+          ],
+          "bicycle" => %{
+            "color" => "red",
+            "price" => 19.95
+          }
+      }}
+    end
 
   end
