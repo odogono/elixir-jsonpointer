@@ -1,6 +1,6 @@
 defmodule JSONPointerTest do
   use ExUnit.Case
-  # doctest JSONPointer
+  doctest JSONPointer
 
 
     test "get" do
