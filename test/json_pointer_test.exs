@@ -164,42 +164,41 @@ defmodule JSONPointerTest do
 
     test "extract" do
       tests = [
-        [
-          %{}
-          # empty result
-        ],
-        [
-          []
-          # empty result
-        ],
-        [ 
+        {
+          %{},
+          []# empty result
+        },
+        {
+          [],
+          [] # empty result
+        },
+        { 
           %{"a"=>1}, 
-          {"/a", 1} 
-        ],
-        [ 
+          [{"/a", 1}]
+        },
+        { 
           %{"a"=>1, "b"=>true}, 
-          {"/a", 1}, {"/b", true} 
-        ],
-        [ 
+          [{"/a", 1}, {"/b", true}]
+        },
+        { 
           %{"a"=>1, "b"=>%{"c"=>"nice"}}, 
-          {"/a", 1}, {"/b/c", "nice"} 
-        ],
-        [ 
+          [{"/a", 1}, {"/b/c", "nice"}] 
+        },
+        { 
           [ "alpha", "beta" ], 
-          {"/0", "alpha"}, {"/1", "beta"} 
-        ],
-        [ 
+          [{"/0", "alpha"}, {"/1", "beta"}] 
+        },
+        { 
           %{"a"=>%{"b"=>["c","d"]}},
-          {"/a/b/0", "c"}, {"/a/b/1", "d"}
-        ],
-        [
+          [{"/a/b/0", "c"}, {"/a/b/1", "d"}]
+        },
+        {
           %{"a"=>[10, %{"b"=>12.5}], "c"=>99},
-          {"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}
-        ]
+          [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}]
+        }
       ]
 
-      Enum.each( tests, fn(test) ->
-        [obj|expected_paths] = test
+      Enum.each( tests, fn({obj,expected_paths}) ->
         assert JSONPointer.extract(obj) == {:ok, expected_paths}
       end)
     end
@@ -208,18 +207,30 @@ defmodule JSONPointerTest do
 
 
     test "merge" do
-      
-      obj = %{
+      src = %{
         "bla" => %{ "test" => "expected" },
         "foo" => [ ["hello"] ],
         "abc" => "bla"
       }
 
-      # "/bla/test" = "expected"
-      # "/foo/0/0" = "hello"
-      # "/abc" = "bla"
+      assert JSONPointer.merge(["foo", "bar"],%{"a" => false}) == {:error, "invalid json pointer invalid index a"}
 
-      # JSONPointer.merge(obj, %{"bla" => %{"alpha" => "beta"}} )
+      assert JSONPointer.merge(%{"a" => false}, %{"c" => true, "b" => 13}) == {:ok, %{"a" => false, "b" => 13, "c" => true}}
+
+      assert JSONPointer.merge(src, %{"bla" => %{"alpha" => "beta"}}) == {:ok, 
+        %{
+          "bla" => %{"alpha" => "beta", "test" => "expected" },
+          "foo" => [ ["hello"] ],
+          "abc" => "bla"
+        }}
+
+      assert JSONPointer.merge(src, %{"foo" => [ 10, %{ "a"=>true, "b"=>false}], "abc"=>30 } ) == {:ok, 
+        %{
+            "abc" => 30, 
+            "bla" => %{"test" => "expected"},
+            "foo" => [ 10, %{ "a"=>true, "b"=>false}] }}
+
+      assert JSONPointer.merge(src, %{"foo"=>nil, "bla"=>nil}) == {:ok, %{"abc" => "bla", "bla" => nil, "foo" => nil}}
 
     end
 

@@ -7,6 +7,7 @@ defmodule JSONPointer do
   @type existing :: t
   @type removed :: t
   @type pointer_list :: [String.t]
+  @type container :: map | list
 
   @doc """
     Retrieves the value indicated by the pointer from the object
@@ -118,30 +119,67 @@ defmodule JSONPointer do
   """
   @spec extract(input) :: {:ok,pointer_list} 
   def extract( object ) do
-    {:ok, extract_container( object, nil, object, [], [] )}
+    {:ok, extract_container( object, [], [] )}
   end
 
 
-  defp extract_container( object, key, value, acc, result ) when is_list(value) do
+  defp extract_container( value, acc, result ) when is_list(value) do
     value |> Stream.with_index |> Enum.reduce( result,fn({v,k}, racc) ->
       k = Integer.to_string(k)
-      racc ++ extract_container( object, k, v, [k|acc], result)
+      racc ++ extract_container( v, [k|acc], result)
     end)
     
   end
 
 
-  defp extract_container( object, key, value, acc, result ) when is_map(value) do
+  defp extract_container( value, acc, result ) when is_map(value) do
     Enum.reduce(value, result, fn({k,v},racc) ->
-      racc ++ extract_container( object, k, v, [k|acc], result )
+      racc ++ extract_container( v, [k|acc], result )
     end)
   end
 
 
-  defp extract_container( object, key, value, acc, result ) do
+  defp extract_container( value, acc, result ) do
     # join the accumulated keys together into a path, and join it with the result
     [ {"/" <> Enum.join(Enum.reverse(acc),"/"), value} | result]
   end
+
+
+  
+
+  
+
+  @doc """
+  Merges the incoming dst object into src
+
+    ## Examples
+
+    iex> JSONPointer.merge( %{"a"=>1}, %{"b"=>2} )
+    {:ok, %{"a"=>1,"b"=>2} }
+
+    iex> JSONPointer.merge( ["foo", "bar"], ["baz"] )
+    {:ok, ["baz", "bar"]}
+
+  """
+  @spec merge(container, container) :: {:ok, container}
+  def merge( src, dst ) do
+    # extract a list of json paths from the dst
+    {:ok, paths} = extract(dst)
+
+    # apply each of those paths to the src
+    reduce_result = Enum.reduce( paths, src, fn({path,value}, acc) -> 
+      case JSONPointer.set( acc, path, value) do
+        {:ok, result, _} -> result
+        {:error, reason} -> {:error, reason}
+      end
+    end)
+
+    case reduce_result do
+      {:error, reason} -> {:error, reason}
+      result -> {:ok, result}
+    end
+  end
+
 
 
 

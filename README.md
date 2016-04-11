@@ -52,6 +52,21 @@ JSONPointer.set( %{}, "/example/msg", "hello")
 
 Returns an array of JSON pointer paths mapped to their values
 
+```Elixir
+JSONPointer.extract( %{"a"=>%{"b"=>["c","d"]}} )
+# => {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
+```
+
+
+### JSONPointer.merge(src,dst)
+
+Merges the dst container into src
+
+```Elixir
+JSONPointer.merge( %{"a"=>1}, %{"b"=>2} )
+# => {:ok, %{"a"=>1,"b"=>2} }
+```
+
 
 ### JSONPointer.has(object, pointer)
 
