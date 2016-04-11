@@ -6,6 +6,7 @@ defmodule JSONPointer do
   @type msg :: String.t 
   @type existing :: t
   @type removed :: t
+  @type pointer_list :: [String.t]
 
   @doc """
     Retrieves the value indicated by the pointer from the object
@@ -40,7 +41,7 @@ defmodule JSONPointer do
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
       ** (ArgumentError) json pointer key not found: fridge
   """
-  @spec get!(input,pointer) :: {:ok,t} | t
+  @spec get!(input,pointer) :: {:ok,t} | no_return
   def get!(obj,pointer) do
     case walk_container( :get, obj, pointer, nil ) do
       {:ok,value,_} -> value
@@ -102,6 +103,45 @@ defmodule JSONPointer do
     end
   end
 
+
+
+  @doc """
+  Extracts a list of JSON pointer paths from the given object
+
+    ## Examples
+    iex> JSONPointer.extract( %{"a"=>%{"b"=>["c","d"]}} )
+    {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
+
+    iex> JSONPointer.extract( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
+    {:ok, [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}] }
+
+  """
+  @spec extract(input) :: {:ok,pointer_list} 
+  def extract( object ) do
+    {:ok, extract_container( object, nil, object, [], [] )}
+  end
+
+
+  defp extract_container( object, key, value, acc, result ) when is_list(value) do
+    value |> Stream.with_index |> Enum.reduce( result,fn({v,k}, racc) ->
+      k = Integer.to_string(k)
+      racc ++ extract_container( object, k, v, [k|acc], result)
+    end)
+    
+  end
+
+
+  defp extract_container( object, key, value, acc, result ) when is_map(value) do
+    Enum.reduce(value, result, fn({k,v},racc) ->
+      racc ++ extract_container( object, k, v, [k|acc], result )
+    end)
+  end
+
+
+  defp extract_container( object, key, value, acc, result ) do
+    # join the accumulated keys together into a path, and join it with the result
+    [ {"/" <> Enum.join(Enum.reverse(acc),"/"), value} | result]
+  end
 
 
 
@@ -493,7 +533,11 @@ defmodule JSONPointer do
       {:ok, [ "fridge", "butter"] }
   """
 
+  # def parse(pointer) when is_binary(pointer), do: parse(String.to_char_list(pointer))
+
   def parse(""), do: {:ok,[]}
+
+  def parse( pointer ) when is_list(pointer), do: {:ok,pointer}
 
   @spec parse(pointer) :: {:ok,[String.t]} | {:error,msg,pointer}
   def parse( pointer ) do
@@ -516,6 +560,8 @@ defmodule JSONPointer do
     end
 
   end
+
+  
 
 
   @doc """

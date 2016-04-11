@@ -161,6 +161,68 @@ defmodule JSONPointerTest do
         %{"a" => nil, "c" => [%{"d" => 3}, %{"e" => 4}], "f" => 5, "g" => [%{"d" => 6}, %{"e" => 7}]}, %{"b" => 2}}
     end
 
+
+    test "extract" do
+      tests = [
+        [
+          %{}
+          # empty result
+        ],
+        [
+          []
+          # empty result
+        ],
+        [ 
+          %{"a"=>1}, 
+          {"/a", 1} 
+        ],
+        [ 
+          %{"a"=>1, "b"=>true}, 
+          {"/a", 1}, {"/b", true} 
+        ],
+        [ 
+          %{"a"=>1, "b"=>%{"c"=>"nice"}}, 
+          {"/a", 1}, {"/b/c", "nice"} 
+        ],
+        [ 
+          [ "alpha", "beta" ], 
+          {"/0", "alpha"}, {"/1", "beta"} 
+        ],
+        [ 
+          %{"a"=>%{"b"=>["c","d"]}},
+          {"/a/b/0", "c"}, {"/a/b/1", "d"}
+        ],
+        [
+          %{"a"=>[10, %{"b"=>12.5}], "c"=>99},
+          {"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}
+        ]
+      ]
+
+      Enum.each( tests, fn(test) ->
+        [obj|expected_paths] = test
+        assert JSONPointer.extract(obj) == {:ok, expected_paths}
+      end)
+    end
+
+
+
+
+    test "merge" do
+      
+      obj = %{
+        "bla" => %{ "test" => "expected" },
+        "foo" => [ ["hello"] ],
+        "abc" => "bla"
+      }
+
+      # "/bla/test" = "expected"
+      # "/foo/0/0" = "hello"
+      # "/abc" = "bla"
+
+      # JSONPointer.merge(obj, %{"bla" => %{"alpha" => "beta"}} )
+
+    end
+
     test "has" do
       obj = %{
         "bla" => %{ "test" => "expected" },
@@ -181,13 +243,15 @@ defmodule JSONPointerTest do
     end
 
     test "parse" do
-      assert JSONPointer.parse("") == { :ok, [] }
-      assert JSONPointer.parse("invalid") == { :error, "invalid json pointer", "invalid" }
-      assert JSONPointer.parse("/some/where/over") == { :ok, [ "some", "where", "over" ] }
-      assert JSONPointer.parse("/hello~0bla/test~1bla") == { :ok, ["hello~bla","test/bla"] }
-      assert JSONPointer.parse("/~2") == { :ok, ["**"] }
+      assert JSONPointer.parse("") == {:ok, []}
+      assert JSONPointer.parse("invalid") == {:error, "invalid json pointer", "invalid"}
+      assert JSONPointer.parse("/some/where/over") == {:ok, ["some", "where", "over"]}
+      assert JSONPointer.parse("/hello~0bla/test~1bla") == {:ok, ["hello~bla","test/bla"]}
+      assert JSONPointer.parse("/~2") == {:ok, ["**"]}
 
       assert JSONPointer.parse("/initial/**/**") == {:ok, ["initial", "**", "**"]}
+
+      assert JSONPointer.parse(["some", "where", "over"]) == {:ok, ["some", "where", "over"]}
     end
 
 

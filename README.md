@@ -48,6 +48,11 @@ JSONPointer.set( %{}, "/example/msg", "hello")
 ```
 
 
+### JSONPointer.extract(object)
+
+Returns an array of JSON pointer paths mapped to their values
+
+
 ### JSONPointer.has(object, pointer)
 
 Returns true if the given value exists in the object indicated by the pointer
