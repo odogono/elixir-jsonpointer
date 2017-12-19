@@ -34,9 +34,9 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Looks up a JSON pointer in an object
+    Retrieves the value indicated by the pointer from the object
 
-    raises an exception if their is an error
+    raises an exception if there is an error
 
     ## Examples
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
@@ -141,7 +141,8 @@ defmodule JSONPointer do
 
   defp extract_container( value, acc, result ) do
     # join the accumulated keys together into a path, and join it with the result
-    [ {"/" <> Enum.join(Enum.reverse(acc),"/"), value} | result]
+    parts = Enum.map( acc, fn(path) -> escape(path) end)
+    [ {"/" <> Enum.join(Enum.reverse(parts),"/"), value} | result]
   end
 
 

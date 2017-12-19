@@ -37,6 +37,14 @@ JSONPointer.get( %{ "fridge" => %{ "door" => "milk" } }, "/fridge/door" )
 # => {:ok, "milk"}
 ```
 
+### JSONPointer.get!(object,pointer)
+
+Retrieves the value indicated by the pointer from the object, and throws an exception if not found
+
+```Elixir
+JSONPointer.get!( %{}, "/fridge/milk" )
+** (ArgumentError) json pointer key not found: fridge
+```
 
 ### JSONPointer.set(object, pointer, value)
 

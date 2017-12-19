@@ -195,8 +195,20 @@ defmodule JSONPointerTest do
         {
           %{"a"=>[10, %{"b"=>12.5}], "c"=>99},
           [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}]
+        },
+        # {
+        #   %{ "a"=>%{}, "b"=>[] },
+        #   [ [] ] 
+        #   # the result is empty because both a and b have empty containers
+        #   # [ {"/a", %{}, {"/b",[]} }]
+        # },
+        {
+          %{ ""=>0, "a/b"=>1, "c%d"=>2,"e^f"=>3,"g|h"=>4,"i\\j"=>5,"k\"l"=>6," "=>7,"m~n"=>8 },
+          [ [{"/", 0}, {"/a~1b", 1}, {"/c%25d", 2}, {"/e%5Ef", 3}, {"/g%7Ch", 4}, {"/i%5Cj", 5}, {"/k%22l", 6}, {"/%20", 7}, {"/m~0n", 8}] ]
         }
       ]
+
+      
 
       Enum.each( tests, fn({obj,expected_paths}) ->
         assert JSONPointer.extract(obj) == {:ok, expected_paths}
