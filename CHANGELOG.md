@@ -4,6 +4,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v1.3.0
+### Fixed
+- deprecation warning for String.ltrim
+- Unsafe variable warnings
+
 ## v1.2.0
 ### Added
 - parse will take a list of strings

@@ -189,18 +189,20 @@ defmodule JSONPointer do
   defp apply_into( list, index, val ) when is_list(list) do
     if index do
       # ensure the list has the capacity for this index
-      val = list |> ensure_list_size(index+1) |> List.replace_at(index, val)
+      list |> ensure_list_size(index+1) |> List.replace_at(index, val)
+    else
+      val
     end
-    val
   end
 
 
   # set the key to val within a map
   defp apply_into( map, key, val ) when is_map(map) do
     if key do
-      val = Map.put(map, key, val)
+      Map.put(map, key, val)
+    else
+      val
     end
-    val
   end
 
 
@@ -368,7 +370,7 @@ defmodule JSONPointer do
       {:ok, _existing} ->
         walk_container( operation, map, map, next_token, next_tokens, value)
       :error ->
-        result = Enum.reduce( Dict.keys(map), [], fn(map_key, acc) ->
+        result = Enum.reduce( Map.keys(map), [], fn(map_key, acc) ->
           case walk_container( operation, map, Map.fetch!(map, map_key), "**", tokens, value) do
               {:ok, walk_val, _walk_res} ->
                 case walk_val do
@@ -582,14 +584,13 @@ defmodule JSONPointer do
   def parse( pointer ) do
 
     # handle a URI Fragment
-    if String.first(pointer) == "#", do: pointer = pointer |> String.lstrip(?#)
+    pointer = String.trim_leading(pointer, "#")
 
     case String.first(pointer) do
-
       "/" ->
         {:ok,
           pointer
-          |> String.lstrip(?/)
+          |> String.trim_leading("/")
           |> String.split("/")
           |> Enum.map( &URI.decode/1 )
           |> Enum.map( &JSONPointer.unescape/1) }
@@ -613,10 +614,12 @@ defmodule JSONPointer do
   @spec ensure_list_size(list,non_neg_integer()) :: list
   def ensure_list_size(list, size) do
     diff = size - Enum.count(list)
+
     if diff > 0 do
-      list = list ++ List.duplicate( nil, diff )
+      list ++ List.duplicate( nil, diff )
+    else
+      list
     end
-    list
   end
 
 end
