@@ -1,7 +1,7 @@
 defmodule JsonPointer.Mixfile do
   use Mix.Project
 
-  @version "1.3.0"
+  @version "1.3.1"
 
   def project do
     [app: :json_pointer,
@@ -10,7 +10,7 @@ defmodule JsonPointer.Mixfile do
      package: package(),
      deps: deps(),
      version: @version,
-     elixir: "~> 1.4",
+     elixir: "~> 1.3",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      docs: [readme: "README.md",
