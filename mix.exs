@@ -1,10 +1,10 @@
 defmodule JsonPointer.Mixfile do
   use Mix.Project
 
-  @version "1.3.1"
+  @version "1.3.2"
 
   def project do
-    [app: :json_pointer,
+    [app: :odgn_json_pointer,
      name: "JSON Pointer",
      description: description(),
      package: package(),
