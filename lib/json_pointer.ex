@@ -235,6 +235,11 @@ defmodule JSONPointer do
     {:ok, object, nil}
   end
 
+
+  defp walk_container(_operation, object, pointer, _value ) when is_bitstring(object) do
+    raise ArgumentError, message: "invalid object: #{object}"
+  end
+
   # begins the descent into a container using the specified pointer  
   defp walk_container(operation, object, pointer, value) when is_list(pointer) do
     [token | tokens] = pointer

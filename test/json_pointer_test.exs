@@ -28,6 +28,12 @@ defmodule JSONPointerTest do
     assert JSONPointer.get(obj, "/200") == {:ok, %{"a" => "b"}}
 
     assert JSONPointer.get(obj, ["d", "e", "1", "b"]) == {:ok, 4}
+
+    # passing a string an the object raises an error
+    assert_raise ArgumentError, "invalid object: { \"unencoded\":\"json\" }", fn ->
+      JSONPointer.get("{ \"unencoded\":\"json\" }", "/unencoded" )
+    end
+
   end
 
   test "get URI fragment" do
