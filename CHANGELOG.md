@@ -4,6 +4,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v1.3.3
+### Changed
+- passing a string to get/set will raise an argument error
+- new elixir formatter applied to code
+- code refactored to use defguard
+
 ## v1.3.0
 ### Fixed
 - deprecation warning for String.ltrim

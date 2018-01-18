@@ -236,7 +236,7 @@ defmodule JSONPointer do
   end
 
 
-  defp walk_container(_operation, object, pointer, _value ) when is_bitstring(object) do
+  defp walk_container(_operation, object, _pointer, _value ) when is_bitstring(object) do
     raise ArgumentError, message: "invalid object: #{object}"
   end
 
