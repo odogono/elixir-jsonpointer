@@ -4,18 +4,22 @@ defmodule JsonPointer.Mixfile do
   @version "1.3.2"
 
   def project do
-    [app: :odgn_json_pointer,
-     name: "JSON Pointer",
-     description: description(),
-     package: package(),
-     deps: deps(),
-     version: @version,
-     elixir: "~> 1.3",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     docs: [readme: "README.md",
-            source_ref: "v#{@version}",
-            source_url: "https://github.com/odogono/elixir-jsonpointer"]]
+    [
+      app: :odgn_json_pointer,
+      name: "JSON Pointer",
+      description: description(),
+      package: package(),
+      deps: deps(),
+      version: @version,
+      elixir: "~> 1.3",
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      docs: [
+        readme: "README.md",
+        source_ref: "v#{@version}",
+        source_url: "https://github.com/odogono/elixir-jsonpointer"
+      ]
+    ]
   end
 
   # Configuration for the OTP application
@@ -26,8 +30,7 @@ defmodule JsonPointer.Mixfile do
   end
 
   defp deps do
-    [{:earmark, "~> 1.2.4", only: :dev},
-      {:ex_doc, "~> 0.18.1", only: :dev}]
+    [{:earmark, "~> 1.2.4", only: :dev}, {:ex_doc, "~> 0.18.1", only: :dev}]
   end
 
   defp description do
@@ -40,10 +43,9 @@ defmodule JsonPointer.Mixfile do
     [
       name: "odgn_json_pointer",
       licenses: ["MIT"],
-      maintainers: [ "Alexander Veenendaal" ],
+      maintainers: ["Alexander Veenendaal"],
       links: %{"GitHub" => "https://github.com/odogono/elixir-jsonpointer"},
-      files: [ "lib", "mix.exs", "README.md", "LICENSE"]
+      files: ["lib", "mix.exs", "README.md", "LICENSE"]
     ]
   end
-
 end
