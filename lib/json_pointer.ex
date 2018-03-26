@@ -44,6 +44,11 @@ defmodule JSONPointer do
   defguard is_set_nil_container(operation, container)
            when operation == :set and container == nil
 
+  defguard is_empty_map(value) when value == %{}
+
+  defguard is_empty_list(value) when value == []
+
+
   @doc """
     Retrieves the value indicated by the pointer from the object
 
@@ -77,7 +82,7 @@ defmodule JSONPointer do
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
       ** (ArgumentError) json pointer key not found: fridge
   """
-  @spec get!(input, pointer) :: {:ok, t} | no_return
+  @spec get!(input, pointer) :: t | no_return
   def get!(obj, pointer) do
     case walk_container(:get, obj, pointer, nil) do
       {:ok, value, _} -> value
@@ -132,10 +137,33 @@ defmodule JSONPointer do
       {:ok, %{"milk" => "empty"}, "full"}
   """
   @spec set(input, pointer, t) :: {:ok, t, existing} | {:error, msg}
-  def set(object, pointer, value) do
-    case walk_container(:set, object, pointer, value) do
+  def set(obj, pointer, value) do
+    case walk_container(:set, obj, pointer, value) do
       {:ok, result, existing} -> {:ok, result, existing}
       {:error, msg, _} -> {:error, msg}
+    end
+  end
+
+  @doc """
+    Sets a new value on object at the location described by pointer
+
+    raises an exception if there is an error
+
+    ## Examples
+      iex> JSONPointer.set!( %{}, "/example/msg", "hello")
+      %{ "example" => %{ "msg" => "hello" }}
+
+      iex> JSONPointer.set!( %{}, "/fridge/contents/1", "milk" )
+      %{"fridge" => %{"contents" => [nil, "milk"]}}
+
+      iex> JSONPointer.set!( %{"milk"=>"full"}, "/milk", "empty")
+      %{"milk" => "empty"}
+  """
+  @spec set!(input, pointer, t) :: t | no_return
+  def set!(obj, pointer, value) do
+    case walk_container(:set, obj, pointer, value) do
+      {:ok, result, _existing} -> result
+      {:error, msg, _} -> raise ArgumentError, message: msg
     end
   end
 
@@ -143,33 +171,69 @@ defmodule JSONPointer do
   Extracts a list of JSON pointer paths from the given object
 
     ## Examples
-    iex> JSONPointer.extract( %{"a"=>%{"b"=>["c","d"]}} )
+    iex> JSONPointer.dehydrate( %{"a"=>%{"b"=>["c","d"]}} )
     {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
 
-    iex> JSONPointer.extract( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
+    iex> JSONPointer.dehydrate( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
     {:ok, [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}] }
 
   """
-  @spec extract(input) :: {:ok, pointer_list}
-  def extract(object) do
-    {:ok, extract_container(object, [], [])}
+  @spec dehydrate(input) :: {:ok, pointer_list}
+  def dehydrate(object) do
+    {:ok, dehydrate_container(object, [], [])}
   end
 
-  defp extract_container(value, acc, result) when is_list(value) do
-    value |> Stream.with_index()
+  @doc """
+  Extracts a list of JSON pointer paths from the given object
+
+    ## Examples
+    iex> JSONPointer.dehydrate!( %{"a"=>%{"b"=>["c","d"]}} )
+    [{"/a/b/0", "c"}, {"/a/b/1", "d"}]
+
+    iex> JSONPointer.dehydrate!( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
+    [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}]
+
+  """
+  @spec dehydrate!(input) :: pointer_list
+  def dehydrate!(object) do
+    dehydrate_container(object, [], [])
+  end
+
+  defp dehydrate_container(value, acc, result) when is_empty_list(value) do
+    dehydrate_gather(value, acc, result)
+  end
+
+  defp dehydrate_container(value, acc, result) when is_list(value) do
+    value
+    |> Stream.with_index()
     |> Enum.reduce(result, fn {v, k}, racc ->
       k = Integer.to_string(k)
-      racc ++ extract_container(v, [k | acc], result)
+      racc ++ dehydrate_container(v, [k | acc], result)
     end)
   end
 
-  defp extract_container(value, acc, result) when is_map(value) do
+  defp dehydrate_container(value, acc, result) when is_empty_map(value) do
+    dehydrate_gather(value, acc, result)
+  end
+
+  defp dehydrate_container(value, acc, result) when is_map(value) do
     Enum.reduce(value, result, fn {k, v}, racc ->
-      racc ++ extract_container(v, [k | acc], result)
+      racc ++ dehydrate_container(v, [k | acc], result)
+      # IO.puts "[dehydrate_container] ? #{[k | acc]} = #{Poison.encode!(racc)}"
     end)
   end
 
-  defp extract_container(value, acc, result) do
+  defp dehydrate_container(value, acc, result) do
+    # join the accumulated keys together into a path, and join it with the result
+    parts = Enum.map(acc, fn path -> escape(path) end)
+    [{"/" <> Enum.join(Enum.reverse(parts), "/"), value} | result]
+  end
+
+  defp dehydrate_gather(_value, acc, _result) when is_empty_list(acc) do
+    []
+  end
+
+  defp dehydrate_gather(value, acc, result) do
     # join the accumulated keys together into a path, and join it with the result
     parts = Enum.map(acc, fn path -> escape(path) end)
     [{"/" <> Enum.join(Enum.reverse(parts), "/"), value} | result]
@@ -190,7 +254,7 @@ defmodule JSONPointer do
   @spec merge(container, container) :: {:ok, container}
   def merge(src, dst) do
     # extract a list of json paths from the dst
-    {:ok, paths} = extract(dst)
+    {:ok, paths} = dehydrate(dst)
 
     # apply each of those paths to the src
     reduce_result =
@@ -204,6 +268,26 @@ defmodule JSONPointer do
     case reduce_result do
       {:error, reason} -> {:error, reason}
       result -> {:ok, result}
+    end
+  end
+
+  @doc """
+  Merges the incoming dst object into src
+
+    ## Examples
+
+    iex> JSONPointer.merge!( %{"a"=>1}, %{"b"=>2} )
+    %{"a"=>1,"b"=>2}
+
+    iex> JSONPointer.merge!( ["foo", "bar"], ["baz"] )
+    ["baz", "bar"]
+
+  """
+  @spec merge!(container, container) :: container | no_return
+  def merge!(src, dst) do
+    case merge(src, dst) do
+      {:ok, result} -> result
+      {:error, msg} -> raise ArgumentError, message: msg
     end
   end
 
@@ -235,8 +319,7 @@ defmodule JSONPointer do
     {:ok, object, nil}
   end
 
-
-  defp walk_container(_operation, object, _pointer, _value ) when is_bitstring(object) do
+  defp walk_container(_operation, object, _pointer, _value) when is_bitstring(object) do
     raise ArgumentError, message: "invalid object: #{object}"
   end
 

@@ -31,9 +31,8 @@ defmodule JSONPointerTest do
 
     # passing a string an the object raises an error
     assert_raise ArgumentError, "invalid object: { \"unencoded\":\"json\" }", fn ->
-      JSONPointer.get("{ \"unencoded\":\"json\" }", "/unencoded" )
+      JSONPointer.get("{ \"unencoded\":\"json\" }", "/unencoded")
     end
-
   end
 
   test "get URI fragment" do
@@ -274,7 +273,8 @@ defmodule JSONPointerTest do
               }, %{"b" => 2}}
   end
 
-  test "extract" do
+  @tag :wip
+  test "dehydrate" do
     tests = [
       {
         %{},
@@ -310,12 +310,11 @@ defmodule JSONPointerTest do
         %{"a" => [10, %{"b" => 12.5}], "c" => 99},
         [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}]
       },
-      # {
-      #   %{ "a"=>%{}, "b"=>[] },
-      #   [ [] ] 
-      #   # the result is empty because both a and b have empty containers
-      #   # [ {"/a", %{}, {"/b",[]} }]
-      # },
+      {
+        %{"a" => %{}, "b" => [], "c" => nil},
+        # the result is empty because both a and b have empty containers
+        [{"/a", %{}}, {"/b", []}, {"/c", nil}]
+      },
       {
         %{
           "" => 0,
@@ -343,7 +342,7 @@ defmodule JSONPointerTest do
     ]
 
     Enum.each(tests, fn {obj, expected_paths} ->
-      assert JSONPointer.extract(obj) == {:ok, expected_paths}
+      assert JSONPointer.dehydrate(obj) == {:ok, expected_paths}
     end)
   end
 
