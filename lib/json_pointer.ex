@@ -8,6 +8,8 @@ defmodule JSONPointer do
   @type pointer_list :: {String.t(), t}
   @type container :: map | list
   @type error_message :: {:error, msg}
+  @typep transform_fn :: ((any()) -> any())
+  @typep apply_mapping :: { String.t(), String.t() } | { String.t(), String.t(), transform_fn } | { String.t(), (() -> any()) }
 
   defguard is_remove_from_map(operation, map, tokens)
            when operation == :remove and tokens == [] and is_map(map)
@@ -349,6 +351,29 @@ defmodule JSONPointer do
       {:error, msg} -> raise ArgumentError, message: msg
     end
   end
+
+
+  @doc """
+    Applies a mapping of source paths to destination paths in the result
+
+    The mapping can optionally include a function which transforms the source 
+    value before it is applied to the result.
+
+    ## Examples
+
+    iex> JSONPointer.apply( %{ "a"=>4, "b"=>%{ "c" => true }}, [ {"/b/c", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
+    %{"count" => 8, "valid" => true}
+
+  """
+  @spec apply(map(), apply_mapping) :: map()
+  def apply(source, mapping) do
+    Enum.reduce(mapping, %{}, fn 
+        {dst_path,transform}, acc when is_function(transform) -> set!(acc, dst_path, transform.() )
+        {src_path,dst_path}, acc -> set!(acc, dst_path, get!(source, src_path))
+        {src_path,dst_path, transform}, acc -> set!(acc, dst_path, transform.(get!( source, src_path)))
+    end)
+  end
+
 
   # set the list at index to val
   defp apply_into(list, index, val) when is_list(list) do

@@ -4,6 +4,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v2.2.0
+### Added
+- hydrate and dehydrate functions added
+- apply added - a utility to transform a source container
+
+### Removed
+- extract - renamed to dehydrate
+
+
 ## v2.1.0
 ### Added
 - set!, extract!, merge!

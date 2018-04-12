@@ -454,6 +454,42 @@ defmodule JSONPointerTest do
     assert JSONPointer.ensure_list_size([], 3) == [nil, nil, nil]
   end
 
+  test "apply" do
+    input = ~s({
+      "dt": 1520942400,
+      "temp": {
+          "day": 11
+      },
+      "pressure": 1005.47,
+      "humidity": 100,
+      "weather": [
+          {
+              "main": "few clouds"
+          }
+      ],
+      "speed": 3.12,
+      "deg": 272,
+      "clouds": 12
+  }) |> Poison.decode!()
+
+    time = :os.system_time(:seconds)
+
+    result =
+      JSONPointer.apply(input, [
+        {"/temp/day", "/temp"},
+        {"/weather/0/main", "/description"},
+        {"/created_at", fn -> time end},
+        {"/dt", "/datetime", fn val -> val |> DateTime.from_unix!() |> DateTime.to_iso8601() end}
+      ])
+
+    assert result == %{
+             "created_at" => time,
+             "datetime" => "2018-03-13T12:00:00Z",
+             "description" => "few clouds",
+             "temp" => 11
+           }
+  end
+
   def book_store_data() do
     %{
       "store" => %{
