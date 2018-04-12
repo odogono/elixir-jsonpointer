@@ -312,7 +312,6 @@ defmodule JSONPointerTest do
       },
       {
         %{"a" => %{}, "b" => [], "c" => nil},
-        # the result is empty because both a and b have empty containers
         [{"/a", %{}}, {"/b", []}, {"/c", nil}]
       },
       {

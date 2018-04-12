@@ -4,6 +4,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v2.1.0
+### Added
+- set!, extract!, merge!
+
+
 ## v2.0.0
 ### Changed
 - passing a string to get/set will raise an argument error
