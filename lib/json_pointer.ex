@@ -5,8 +5,9 @@ defmodule JSONPointer do
   @type msg :: String.t()
   @type existing :: t
   @type removed :: t
-  @type pointer_list :: [String.t()]
+  @type pointer_list :: {String.t(), t}
   @type container :: map | list
+  @type error_message :: {:error, msg}
 
   defguard is_remove_from_map(operation, map, tokens)
            when operation == :remove and tokens == [] and is_map(map)
@@ -48,7 +49,6 @@ defmodule JSONPointer do
 
   defguard is_empty_list(value) when value == []
 
-
   @doc """
     Retrieves the value indicated by the pointer from the object
 
@@ -65,7 +65,7 @@ defmodule JSONPointer do
       iex> JSONPointer.get( %{ "contents" => [ "milk", "butter", "eggs" ]}, "/contents/4" )
       {:error, "list index out of bounds: 4"} 
   """
-  @spec get(input, pointer) :: {:ok, t} | {:error, msg}
+  @spec get(input, pointer) :: {:ok, t} | error_message
   def get(obj, pointer) do
     case walk_container(:get, obj, pointer, nil) do
       {:ok, value, _} -> {:ok, value}
@@ -74,9 +74,8 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Retrieves the value indicated by the pointer from the object
-
-    raises an exception if there is an error
+    Retrieves the value indicated by the pointer from the object, raises
+    an error on exception
 
     ## Examples
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
@@ -118,7 +117,7 @@ defmodule JSONPointer do
       iex> JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridge/sandwich" )
       {:error, "json pointer key not found: sandwich", %{ "butter" => true, "milk" => true}}
   """
-  @spec remove(input, pointer) :: {:ok, t, removed} | {:error, msg}
+  @spec remove(input, pointer) :: {:ok, t, removed} | error_message
   def remove(object, pointer) do
     walk_container(:remove, object, pointer, nil)
   end
@@ -136,7 +135,7 @@ defmodule JSONPointer do
       iex> JSONPointer.set( %{"milk"=>"full"}, "/milk", "empty")
       {:ok, %{"milk" => "empty"}, "full"}
   """
-  @spec set(input, pointer, t) :: {:ok, t, existing} | {:error, msg}
+  @spec set(input, pointer, t) :: {:ok, t, existing} | error_message
   def set(obj, pointer, value) do
     case walk_container(:set, obj, pointer, value) do
       {:ok, result, existing} -> {:ok, result, existing}
@@ -145,9 +144,8 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Sets a new value on object at the location described by pointer
-
-    raises an exception if there is an error
+    Sets a new value on object at the location described by pointer, raises
+    an error on exception
 
     ## Examples
       iex> JSONPointer.set!( %{}, "/example/msg", "hello")
@@ -168,7 +166,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Extracts a list of JSON pointer paths from the given object
+    Extracts a list of JSON pointer paths from the given object
 
     ## Examples
     iex> JSONPointer.dehydrate( %{"a"=>%{"b"=>["c","d"]}} )
@@ -178,13 +176,14 @@ defmodule JSONPointer do
     {:ok, [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}] }
 
   """
-  @spec dehydrate(input) :: {:ok, pointer_list}
+  @spec dehydrate(input) :: {:ok, pointer_list} | error_message
   def dehydrate(object) do
     {:ok, dehydrate_container(object, [], [])}
   end
 
   @doc """
-  Extracts a list of JSON pointer paths from the given object
+    Extracts a list of JSON pointer paths from the given object, raises
+    an error on exception
 
     ## Examples
     iex> JSONPointer.dehydrate!( %{"a"=>%{"b"=>["c","d"]}} )
@@ -240,25 +239,18 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Merges the incoming dst object into src
+    Applies the given list of paths to the given container
 
     ## Examples
 
-    iex> JSONPointer.merge( %{"a"=>1}, %{"b"=>2} )
-    {:ok, %{"a"=>1,"b"=>2} }
-
-    iex> JSONPointer.merge( ["foo", "bar"], ["baz"] )
-    {:ok, ["baz", "bar"]}
+    iex> JSONPointer.hydrate( %{}, [ {"/a/b/1", "find"} ] )
+    {:ok, %{"a"=>%{"b"=>[nil,"find"]} } }
 
   """
-  @spec merge(container, container) :: {:ok, container}
-  def merge(src, dst) do
-    # extract a list of json paths from the dst
-    {:ok, paths} = dehydrate(dst)
-
-    # apply each of those paths to the src
+  @spec hydrate(container, pointer_list) :: {:ok, container} | error_message
+  def hydrate(obj, pointer_list) do
     reduce_result =
-      Enum.reduce(paths, src, fn {path, value}, acc ->
+      Enum.reduce(pointer_list, obj, fn {path, value}, acc ->
         case JSONPointer.set(acc, path, value) do
           {:ok, result, _} -> result
           {:error, reason} -> {:error, reason}
@@ -272,7 +264,74 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Merges the incoming dst object into src
+    Applies the given list of paths to the given container, raises an exception 
+    on error
+
+    ## Examples
+
+    iex> JSONPointer.hydrate!( %{}, [ {"/a/b/1", "find"} ] )
+    %{"a"=>%{"b"=>[nil,"find"]} }
+
+  """
+  @spec hydrate!(container, pointer_list) :: container | no_return
+  def hydrate!(obj, pointer_list) do
+    case hydrate(obj, pointer_list) do
+      {:ok, result} -> result
+      {:error, msg} -> raise ArgumentError, message: msg
+    end
+  end
+
+  @doc """
+    Returns the given list of paths applied to a container
+
+    ## Examples
+
+    iex> JSONPointer.hydrate( [ {"/a/1/b", "single"} ] )
+    {:ok, %{"a" => %{"1" => %{"b" => "single"}}}}
+  """
+  @spec hydrate(pointer_list) :: {:ok, container} | error_message
+  def hydrate(pointer_list) do
+    hydrate(%{}, pointer_list)
+  end
+
+  @doc """
+    Returns the given list of paths applied to a container, raises an exception 
+    on error
+    ## Examples
+
+    iex> JSONPointer.hydrate!( [ {"/a/b/1", "find"} ] )
+    %{"a"=>%{"b"=>[nil,"find"]} }
+
+  """
+  @spec hydrate!(pointer_list) :: container | no_return
+  def hydrate!(pointer_list) do
+    case hydrate(pointer_list) do
+      {:ok, result} -> result
+      {:error, msg} -> raise ArgumentError, message: msg
+    end
+  end
+
+  @doc """
+    Merges the incoming dst object into src
+
+    ## Examples
+
+    iex> JSONPointer.merge( %{"a"=>1}, %{"b"=>2} )
+    {:ok, %{"a"=>1,"b"=>2} }
+
+    iex> JSONPointer.merge( ["foo", "bar"], ["baz"] )
+    {:ok, ["baz", "bar"]}
+
+  """
+  @spec merge(container, container) :: {:ok, container}
+  def merge(src, dst) do
+    {:ok, paths} = dehydrate(dst)
+    hydrate(src, paths)
+  end
+
+  @doc """
+    Merges the incoming dst object into src, raises
+    an error on exception
 
     ## Examples
 

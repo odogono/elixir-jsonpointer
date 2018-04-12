@@ -273,7 +273,6 @@ defmodule JSONPointerTest do
               }, %{"b" => 2}}
   end
 
-  @tag :wip
   test "dehydrate" do
     tests = [
       {
@@ -342,6 +341,48 @@ defmodule JSONPointerTest do
 
     Enum.each(tests, fn {obj, expected_paths} ->
       assert JSONPointer.dehydrate(obj) == {:ok, expected_paths}
+    end)
+  end
+
+  # @tag :wip
+  test "hydrate" do
+    tests = [
+      {
+        %{},
+        [],
+        %{}
+      },
+      {
+        %{},
+        [{"/a/b/1", 1}],
+        %{"a" => %{"b" => [nil, 1]}}
+      },
+      {
+        [],
+        [{"/1/a", true}],
+        [nil, %{"a" => true}]
+      },
+      {
+        [],
+        [{"/a", 14.5}],
+        # because of the attempt to set a key on an array
+        {:error, "invalid json pointer invalid index a"}
+      },
+      {
+        %{},
+        [{"/4", false}],
+        [nil, nil, nil, nil, false]
+      }
+    ]
+
+    Enum.each(tests, fn {src, paths, expected} ->
+      expected =
+        case expected do
+          {:error, _} -> expected
+          _ -> {:ok, expected}
+        end
+
+      assert JSONPointer.hydrate(src, paths) == expected
     end)
   end
 
