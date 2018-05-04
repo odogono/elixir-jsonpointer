@@ -14,7 +14,7 @@ Add a dependency to your project `mix.exs`:
 ```Elixir
 
 def deps do
-  [{:odgn_json_pointer, "-> 1.0.0"}]
+  [{:odgn_json_pointer, "~> 2.2"}]
 end
 
 ```
@@ -69,7 +69,7 @@ JSONPointer.set!( %{}, "/example/msg", "hello")
 Returns an array of JSON pointer paths mapped to their values
 
 ```Elixir
-JSONPointer.extract( %{"a"=>%{"b"=>["c","d"]}} )
+JSONPointer.dehydrate( %{"a"=>%{"b"=>["c","d"]}} )
 # => {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
 ```
 
@@ -78,7 +78,7 @@ JSONPointer.extract( %{"a"=>%{"b"=>["c","d"]}} )
 Returns an array of JSON pointer paths mapped to their values
 
 ```Elixir
-JSONPointer.extract!( %{"a"=>%{"b"=>["c","d"]}} )
+JSONPointer.dehydrate!!( %{"a"=>%{"b"=>["c","d"]}} )
 # => [{"/a/b/0", "c"}, {"/a/b/1", "d"}]
 ```
 
