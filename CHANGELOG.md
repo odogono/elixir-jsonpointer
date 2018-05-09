@@ -4,6 +4,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v2.3.0
+### Changed
+- JSONPointer.apply changed to JSONPointer.transform
+
 ## v2.2.0
 ### Added
 - hydrate and dehydrate functions added
