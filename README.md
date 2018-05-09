@@ -39,7 +39,7 @@ JSONPointer.get( %{ "fridge" => %{ "door" => "milk" } }, "/fridge/door" )
 
 ### JSONPointer.get!(object,pointer)
 
-Retrieves the value indicated by the pointer from the object, and throws an exception if not found
+Retrieves the value indicated by the pointer from the object, and raises an error if not found
 
 ```Elixir
 JSONPointer.get!( %{}, "/fridge/milk" )
@@ -57,14 +57,14 @@ JSONPointer.set( %{}, "/example/msg", "hello")
 
 ### JSONPointer.set!(object, pointer, value)
 
-Sets the value indicated by the pointer in the object
+Sets the value indicated by the pointer in the object, raises an exception on error
 
 ```Elixir
 JSONPointer.set!( %{}, "/example/msg", "hello")
 # => %{ "example" => %{ "msg" => "hello" }}
 ```
 
-### JSONPointer.extract(object)
+### JSONPointer.dehydrate(object)
 
 Returns an array of JSON pointer paths mapped to their values
 
@@ -73,13 +73,31 @@ JSONPointer.dehydrate( %{"a"=>%{"b"=>["c","d"]}} )
 # => {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
 ```
 
-### JSONPointer.extract!(object)
+### JSONPointer.dehydrate!(object)
 
-Returns an array of JSON pointer paths mapped to their values
+Returns an array of JSON pointer paths mapped to their values, raises an exception on error
 
 ```Elixir
-JSONPointer.dehydrate!!( %{"a"=>%{"b"=>["c","d"]}} )
+JSONPointer.dehydrate!( %{"a"=>%{"b"=>["c","d"]}} )
 # => [{"/a/b/0", "c"}, {"/a/b/1", "d"}]
+```
+
+### JSONPointer.hydrate(container, paths)
+
+Applies the given list of paths to the given container
+
+```Elixir
+iex> JSONPointer.hydrate( [ {"/a/1/b", "single"} ] )
+# => {:ok, %{"a" => %{"1" => %{"b" => "single"}}}}
+```
+
+### JSONPointer.hydrate!(container, paths)
+
+Applies the given list of paths to the given container, raises an exception on error
+
+```Elixir
+iex> JSONPointer.hydrate!( %{}, [ {"/a/b/1", "find"} ] )
+# => {:ok, %{"a"=>%{"b"=>[nil,"find"]} } }
 ```
 
 ### JSONPointer.merge(src,dst)
@@ -93,13 +111,12 @@ JSONPointer.merge( %{"a"=>1}, %{"b"=>2} )
 
 ### JSONPointer.merge!(src,dst)
 
-Merges the dst container into src
+Merges the dst container into src, raises an exception on error
 
 ```Elixir
 JSONPointer.merge!( %{"a"=>1}, %{"b"=>2} )
 # => %{"a"=>1,"b"=>2}
 ```
-
 
 ### JSONPointer.has(object, pointer)
 
@@ -119,6 +136,14 @@ JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridg
 # => {:ok, %{"fridge" => %{"milk"=>true}}, true }
 ```
 
+### JSONPointer.transform(src,mapping)
+
+Applies a mapping of source paths to destination paths in the result, raises an error on exception
+
+```Elixir
+JSONPointer.transform( %{ "a"=>4, "b"=>%{ "c" => true }}, [ {"/b/c", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
+# => %{"count" => 8, "valid" => true}
+```
 
 ## Ack
 

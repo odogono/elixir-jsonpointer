@@ -9,7 +9,7 @@ defmodule JSONPointer do
   @type container :: map | list
   @type error_message :: {:error, msg}
   @typep transform_fn :: ((any()) -> any())
-  @typep apply_mapping :: { String.t(), String.t() } | { String.t(), String.t(), transform_fn } | { String.t(), (() -> any()) }
+  @typep transform_mapping :: { String.t(), String.t() } | { String.t(), String.t(), transform_fn } | { String.t(), (() -> any()) }
 
   defguardp is_remove_from_map(operation, map, tokens)
             when operation == :remove and tokens == [] and is_map(map)
@@ -362,17 +362,39 @@ defmodule JSONPointer do
 
   ## Examples
 
-      iex> JSONPointer.apply( %{ "a"=>4, "b"=>%{ "c" => true }}, [ {"/b/c", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
-      %{"count" => 8, "valid" => true}
+      iex> JSONPointer.transform( %{ "a"=>4, "b"=>%{ "c" => true }}, [ {"/b/c", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
+      {:ok, %{"count" => 8, "valid" => true}}
 
   """
-  @spec apply(map(), apply_mapping) :: map()
-  def apply(source, mapping) do
-    Enum.reduce(mapping, %{}, fn 
+  @spec transform(map(), transform_mapping) :: map()
+  def transform(src, mapping) do
+    result = Enum.reduce(mapping, %{}, fn 
         {dst_path,transform}, acc when is_function(transform) -> set!(acc, dst_path, transform.() )
-        {src_path,dst_path}, acc -> set!(acc, dst_path, get!(source, src_path))
-        {src_path,dst_path, transform}, acc -> set!(acc, dst_path, transform.(get!( source, src_path)))
+        {src_path,dst_path}, acc -> set!(acc, dst_path, get!(src, src_path))
+        {src_path,dst_path, transform}, acc -> set!(acc, dst_path, transform.(get!( src, src_path)))
     end)
+    {:ok, result}
+  end
+
+  @doc """
+  Applies a mapping of source paths to destination paths in the result, raises an
+  error on exception
+
+  The mapping can optionally include a function which transforms the source 
+  value before it is applied to the result.
+
+  ## Examples
+
+      iex> JSONPointer.transform!( %{ "a"=>5, "b"=>%{ "is_valid" => true }}, [ {"/b/is_valid", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
+      %{"count" => 10, "valid" => true}
+
+  """
+  @spec transform!(map(), transform_mapping) :: map()
+  def transform!(src,mapping) do
+    case transform(src,mapping) do
+      {:ok, result} -> result
+      {:error, msg} -> raise ArgumentError, message: msg
+    end
   end
 
 
@@ -842,15 +864,15 @@ defmodule JSONPointer do
     end
   end
 
-  @doc """
-  Ensures that the given list has size number of elements
+  # @doc """
+  # Ensures that the given list has size number of elements
 
-  ## Examples
-      iex> JSONPointer.ensure_list_size( [], 2 )
-      [nil, nil]
-  """
+  # ## Examples
+  #     iex> JSONPointer.ensure_list_size( [], 2 )
+  #     [nil, nil]
+  # """
   @spec ensure_list_size(list, non_neg_integer()) :: list
-  def ensure_list_size(list, size) do
+  defp ensure_list_size(list, size) do
     diff = size - Enum.count(list)
 
     if diff > 0 do

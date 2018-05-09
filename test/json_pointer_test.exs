@@ -344,7 +344,7 @@ defmodule JSONPointerTest do
     end)
   end
 
-  # @tag :wip
+  
   test "hydrate" do
     tests = [
       {
@@ -450,11 +450,7 @@ defmodule JSONPointerTest do
     assert JSONPointer.parse(["some", "where", "over"]) == {:ok, ["some", "where", "over"]}
   end
 
-  test "ensure_list_size" do
-    assert JSONPointer.ensure_list_size([], 3) == [nil, nil, nil]
-  end
-
-  test "apply" do
+  test "transform" do
     input = ~s({
       "dt": 1520942400,
       "temp": {
@@ -475,19 +471,19 @@ defmodule JSONPointerTest do
     time = :os.system_time(:seconds)
 
     result =
-      JSONPointer.apply(input, [
+      JSONPointer.transform(input, [
         {"/temp/day", "/temp"},
         {"/weather/0/main", "/description"},
         {"/created_at", fn -> time end},
         {"/dt", "/datetime", fn val -> val |> DateTime.from_unix!() |> DateTime.to_iso8601() end}
       ])
 
-    assert result == %{
+    assert result == {:ok, %{
              "created_at" => time,
              "datetime" => "2018-03-13T12:00:00Z",
              "description" => "few clouds",
              "temp" => 11
-           }
+           } }
   end
 
   def book_store_data() do
