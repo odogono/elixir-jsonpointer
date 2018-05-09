@@ -138,12 +138,23 @@ JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridg
 
 ### JSONPointer.transform(src,mapping)
 
-Applies a mapping of source paths to destination paths in the result, raises an error on exception
+Applies a mapping of source paths to destination paths in the result
 
 ```Elixir
 JSONPointer.transform( %{ "a"=>4, "b"=>%{ "c" => true }}, [ {"/b/c", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
-# => %{"count" => 8, "valid" => true}
+# => {:ok, %{"count" => 8, "valid" => true}}
 ```
+
+### JSONPointer.transform!(src,mapping)
+
+Applies a mapping of source paths to destination paths in the result, raises an error on exception
+
+```Elixir
+JSONPointer.transform!( %{ "a"=>5, "b"=>%{ "is_valid" => true }}, [ {"/b/is_valid", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
+# => %{"count" => 10, "valid" => true}
+```
+
+
 
 ## Ack
 
