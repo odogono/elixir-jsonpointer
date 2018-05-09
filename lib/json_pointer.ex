@@ -11,50 +11,50 @@ defmodule JSONPointer do
   @typep transform_fn :: ((any()) -> any())
   @typep apply_mapping :: { String.t(), String.t() } | { String.t(), String.t(), transform_fn } | { String.t(), (() -> any()) }
 
-  defguard is_remove_from_map(operation, map, tokens)
-           when operation == :remove and tokens == [] and is_map(map)
+  defguardp is_remove_from_map(operation, map, tokens)
+            when operation == :remove and tokens == [] and is_map(map)
 
-  defguard is_remove_from_list(operation, list, tokens)
-           when operation == :remove and tokens == [] and is_list(list)
+  defguardp is_remove_from_list(operation, list, tokens)
+            when operation == :remove and tokens == [] and is_list(list)
 
-  defguard is_set_map(operation, map, tokens)
-           when operation == :set and tokens == [] and is_map(map)
+  defguardp is_set_map(operation, map, tokens)
+            when operation == :set and tokens == [] and is_map(map)
 
-  defguard is_set_list(operation, list, tokens)
-           when operation == :set and tokens == [] and is_list(list)
+  defguardp is_set_list(operation, list, tokens)
+            when operation == :set and tokens == [] and is_list(list)
 
-  defguard is_set_list_nil_child(operation, parent, tokens, child)
-           when operation == :set and tokens == [] and is_list(parent) and child == nil
+  defguardp is_set_list_nil_child(operation, parent, tokens, child)
+            when operation == :set and tokens == [] and is_list(parent) and child == nil
 
-  defguard is_get_map(operation, map, tokens)
-           when (operation == :has or operation == :get) and tokens == [] and is_map(map)
+  defguardp is_get_map(operation, map, tokens)
+            when (operation == :has or operation == :get) and tokens == [] and is_map(map)
 
-  defguard is_get_list(operation, list, tokens)
-           when (operation == :has or operation == :get) and tokens == [] and is_list(list)
+  defguardp is_get_list(operation, list, tokens)
+            when (operation == :has or operation == :get) and tokens == [] and is_list(list)
 
-  defguard is_set_map_no_tokens(operation, map)
-           when operation == :set and is_map(map)
+  defguardp is_set_map_no_tokens(operation, map)
+            when operation == :set and is_map(map)
 
-  defguard is_set_list_no_tokens(operation, list)
-           when operation == :set and is_list(list)
+  defguardp is_set_list_no_tokens(operation, list)
+            when operation == :set and is_list(list)
 
-  defguard is_set_remove_map(operation, map)
-           when (operation == :set or operation == :remove) and is_map(map)
+  defguardp is_set_remove_map(operation, map)
+            when (operation == :set or operation == :remove) and is_map(map)
 
-  defguard is_set_remove_list(operation, list)
-           when (operation == :set or operation == :remove) and is_list(list)
+  defguardp is_set_remove_list(operation, list)
+            when (operation == :set or operation == :remove) and is_list(list)
 
-  defguard is_set_nil_container(operation, container)
-           when operation == :set and container == nil
+  defguardp is_set_nil_container(operation, container)
+            when operation == :set and container == nil
 
-  defguard is_empty_map(value) when value == %{}
+  defguardp is_empty_map(value) when value == %{}
 
-  defguard is_empty_list(value) when value == []
+  defguardp is_empty_list(value) when value == []
 
   @doc """
-    Retrieves the value indicated by the pointer from the object
+  Retrieves the value indicated by the pointer from the object
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.get( %{ "fridge" => %{ "door" => "milk" } }, "/fridge/door" )
       {:ok, "milk"}
 
@@ -76,10 +76,10 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Retrieves the value indicated by the pointer from the object, raises
-    an error on exception
+  Retrieves the value indicated by the pointer from the object, raises
+  an error on exception
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
       ** (ArgumentError) json pointer key not found: fridge
   """
@@ -92,9 +92,9 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Tests if an object has a value for a JSON pointer
+  Tests if an object has a value for a JSON pointer
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.has( %{ "milk" => true, "butter" => false}, "/butter" )
       true
 
@@ -110,9 +110,9 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Removes an attribute of object referenced by pointer
+  Removes an attribute of object referenced by pointer
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridge/butter" )
       {:ok, %{"fridge" => %{"milk"=>true}}, true }
 
@@ -127,7 +127,7 @@ defmodule JSONPointer do
   @doc """
   Sets a new value on object at the location described by pointer
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.set( %{}, "/example/msg", "hello")
       {:ok, %{ "example" => %{ "msg" => "hello" }}, nil }
 
@@ -146,10 +146,10 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Sets a new value on object at the location described by pointer, raises
-    an error on exception
+  Sets a new value on object at the location described by pointer, raises
+  an error on exception
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.set!( %{}, "/example/msg", "hello")
       %{ "example" => %{ "msg" => "hello" }}
 
@@ -168,14 +168,14 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Extracts a list of JSON pointer paths from the given object
+  Extracts a list of JSON pointer paths from the given object
 
-    ## Examples
-    iex> JSONPointer.dehydrate( %{"a"=>%{"b"=>["c","d"]}} )
-    {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
+  ## Examples
+      iex> JSONPointer.dehydrate( %{"a"=>%{"b"=>["c","d"]}} )
+      {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
 
-    iex> JSONPointer.dehydrate( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
-    {:ok, [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}] }
+      iex> JSONPointer.dehydrate( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
+      {:ok, [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}] }
 
   """
   @spec dehydrate(input) :: {:ok, pointer_list} | error_message
@@ -184,15 +184,15 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Extracts a list of JSON pointer paths from the given object, raises
-    an error on exception
+  Extracts a list of JSON pointer paths from the given object, raises
+  an error on exception
 
-    ## Examples
-    iex> JSONPointer.dehydrate!( %{"a"=>%{"b"=>["c","d"]}} )
-    [{"/a/b/0", "c"}, {"/a/b/1", "d"}]
+  ## Examples
+      iex> JSONPointer.dehydrate!( %{"a"=>%{"b"=>["c","d"]}} )
+      [{"/a/b/0", "c"}, {"/a/b/1", "d"}]
 
-    iex> JSONPointer.dehydrate!( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
-    [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}]
+      iex> JSONPointer.dehydrate!( %{"a"=>[10, %{"b"=>12.5}], "c"=>99} )
+      [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}]
 
   """
   @spec dehydrate!(input) :: pointer_list
@@ -241,12 +241,12 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Applies the given list of paths to the given container
+  Applies the given list of paths to the given container
 
-    ## Examples
+  ## Examples
 
-    iex> JSONPointer.hydrate( %{}, [ {"/a/b/1", "find"} ] )
-    {:ok, %{"a"=>%{"b"=>[nil,"find"]} } }
+      iex> JSONPointer.hydrate( %{}, [ {"/a/b/1", "find"} ] )
+      {:ok, %{"a"=>%{"b"=>[nil,"find"]} } }
 
   """
   @spec hydrate(container, pointer_list) :: {:ok, container} | error_message
@@ -266,13 +266,13 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Applies the given list of paths to the given container, raises an exception 
-    on error
+  Applies the given list of paths to the given container, raises an exception 
+  on error
 
-    ## Examples
+  ## Examples
 
-    iex> JSONPointer.hydrate!( %{}, [ {"/a/b/1", "find"} ] )
-    %{"a"=>%{"b"=>[nil,"find"]} }
+      iex> JSONPointer.hydrate!( %{}, [ {"/a/b/1", "find"} ] )
+      %{"a"=>%{"b"=>[nil,"find"]} }
 
   """
   @spec hydrate!(container, pointer_list) :: container | no_return
@@ -284,12 +284,12 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Returns the given list of paths applied to a container
+  Returns the given list of paths applied to a container
 
-    ## Examples
+  ## Examples
 
-    iex> JSONPointer.hydrate( [ {"/a/1/b", "single"} ] )
-    {:ok, %{"a" => %{"1" => %{"b" => "single"}}}}
+      iex> JSONPointer.hydrate( [ {"/a/1/b", "single"} ] )
+      {:ok, %{"a" => %{"1" => %{"b" => "single"}}}}
   """
   @spec hydrate(pointer_list) :: {:ok, container} | error_message
   def hydrate(pointer_list) do
@@ -297,12 +297,13 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Returns the given list of paths applied to a container, raises an exception 
-    on error
-    ## Examples
+  Returns the given list of paths applied to a container, raises an exception 
+  on error
 
-    iex> JSONPointer.hydrate!( [ {"/a/b/1", "find"} ] )
-    %{"a"=>%{"b"=>[nil,"find"]} }
+  ## Examples
+
+      iex> JSONPointer.hydrate!( [ {"/a/b/1", "find"} ] )
+      %{"a"=>%{"b"=>[nil,"find"]} }
 
   """
   @spec hydrate!(pointer_list) :: container | no_return
@@ -314,15 +315,15 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Merges the incoming dst object into src
+  Merges the incoming dst object into src
 
-    ## Examples
+  ## Examples
 
-    iex> JSONPointer.merge( %{"a"=>1}, %{"b"=>2} )
-    {:ok, %{"a"=>1,"b"=>2} }
+      iex> JSONPointer.merge( %{"a"=>1}, %{"b"=>2} )
+      {:ok, %{"a"=>1,"b"=>2} }
 
-    iex> JSONPointer.merge( ["foo", "bar"], ["baz"] )
-    {:ok, ["baz", "bar"]}
+      iex> JSONPointer.merge( ["foo", "bar"], ["baz"] )
+      {:ok, ["baz", "bar"]}
 
   """
   @spec merge(container, container) :: {:ok, container}
@@ -332,16 +333,16 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Merges the incoming dst object into src, raises
-    an error on exception
+  Merges the incoming dst object into src, raises
+  an error on exception
 
-    ## Examples
+  ## Examples
 
-    iex> JSONPointer.merge!( %{"a"=>1}, %{"b"=>2} )
-    %{"a"=>1,"b"=>2}
+      iex> JSONPointer.merge!( %{"a"=>1}, %{"b"=>2} )
+      %{"a"=>1,"b"=>2}
 
-    iex> JSONPointer.merge!( ["foo", "bar"], ["baz"] )
-    ["baz", "bar"]
+      iex> JSONPointer.merge!( ["foo", "bar"], ["baz"] )
+      ["baz", "bar"]
 
   """
   @spec merge!(container, container) :: container | no_return
@@ -354,15 +355,15 @@ defmodule JSONPointer do
 
 
   @doc """
-    Applies a mapping of source paths to destination paths in the result
+  Applies a mapping of source paths to destination paths in the result
 
-    The mapping can optionally include a function which transforms the source 
-    value before it is applied to the result.
+  The mapping can optionally include a function which transforms the source 
+  value before it is applied to the result.
 
-    ## Examples
+  ## Examples
 
-    iex> JSONPointer.apply( %{ "a"=>4, "b"=>%{ "c" => true }}, [ {"/b/c", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
-    %{"count" => 8, "valid" => true}
+      iex> JSONPointer.apply( %{ "a"=>4, "b"=>%{ "c" => true }}, [ {"/b/c", "/valid"}, {"/a","/count", fn val -> val*2 end} ] )
+      %{"count" => 8, "valid" => true}
 
   """
   @spec apply(map(), apply_mapping) :: map()
@@ -772,9 +773,9 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Escapes a reference token
+  Escapes a reference token
 
-    ## Examples
+  ## Examples
 
       iex> JSONPointer.escape "hello~bla"
       "hello~0bla"
@@ -793,7 +794,7 @@ defmodule JSONPointer do
   @doc """
   Unescapes a reference token
 
-    ## Examples
+  ## Examples
 
       iex> JSONPointer.unescape "hello~0bla"
       "hello~bla"
@@ -809,9 +810,9 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Converts a JSON pointer into a list of reference tokens
+  Converts a JSON pointer into a list of reference tokens
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.parse("/fridge/butter")
       {:ok, [ "fridge", "butter"] }
   """
@@ -842,9 +843,9 @@ defmodule JSONPointer do
   end
 
   @doc """
-    Ensures that the given list has size number of elements
+  Ensures that the given list has size number of elements
 
-    ## Examples
+  ## Examples
       iex> JSONPointer.ensure_list_size( [], 2 )
       [nil, nil]
   """
