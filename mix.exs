@@ -28,9 +28,9 @@ defmodule JsonPointer.Mixfile do
 
   defp deps do
     [
-      {:earmark, "~> 1.2.4", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.18.3", only: :dev, runtime: false},
-      {:poison, "~> 3.1", only: :test}
+      {:earmark, "~> 1.3.1", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.19.2", only: :dev, runtime: false},
+      {:jason, "~> 1.1.2", only: :test},
     ]
   end
 

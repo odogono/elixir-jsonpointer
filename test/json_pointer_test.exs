@@ -344,7 +344,7 @@ defmodule JSONPointerTest do
     end)
   end
 
-  
+
   test "hydrate" do
     tests = [
       {
@@ -466,7 +466,7 @@ defmodule JSONPointerTest do
       "speed": 3.12,
       "deg": 272,
       "clouds": 12
-  }) |> Poison.decode!()
+  }) |> Jason.decode!
 
     time = :os.system_time(:seconds)
 
