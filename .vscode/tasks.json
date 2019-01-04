@@ -1,0 +1,126 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "phx.server",
+            "type": "shell",
+            "command": "iex -S mix phx.server"
+        },
+        {
+            "label": "Run All Tests",
+            "command": "mix",
+            "args": ["test", "--color", "--trace"],
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$mixCompileError",
+                "$mixCompileWarning",
+                "$mixTestFailure"
+            ]
+        },
+        {
+            "label": "Run Current Test",
+            "command": "mix",
+            "args": [
+                "test",
+                "${relativeFile}:${lineNumber}",
+                "--color",
+                "--trace"
+            ],
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$mixCompileError",
+                "$mixCompileWarning",
+                "$mixTestFailure"
+            ]
+        },
+        {
+            "label": "Test Current File",
+            "command": "mix",
+            "args": ["test", "${relativeFile}", "--color", "--trace"],
+            "group": "test",
+            "type": "shell",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$mixCompileError",
+                "$mixCompileWarning",
+                "$mixTestFailure"
+            ]
+        },
+        {
+            "label": "Store Current Test",
+            "group": "test",
+            "type": "shell",
+            "command": "echo",
+            "args": [ "-n",  "${relativeFile}:${lineNumber} > ${workspaceRoot}/.vscode/STORED_TEST"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Store Current Test File",
+            "group": "test",
+            "type": "process",
+            "command": "echo",
+            "args": [ "-n", "${relativeFile}", ">", "${workspaceRoot}/.vscode/STORED_TEST"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Delete Stored Test",
+            "group": "test",
+            "type": "shell",
+            "command": "rm",
+            "args":[ "${workspaceRoot}/.vscode/STORED_TEST" ],
+            "presentation": {
+                "echo": true,
+                "reveal": "never",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Run Stored Test",
+            "command": "mix",
+            "args": ["test", "$(cat ${workspaceRoot}/.vscode/STORED_TEST)" ],
+            "type": "shell",
+            "group": "test",
+            "problemMatcher": [
+                "$mixCompileError",
+                "$mixCompileWarning",
+                "$mixTestFailure"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        }
+    ]
+}

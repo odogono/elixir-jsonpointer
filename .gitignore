@@ -6,3 +6,4 @@ erl_crash.dump
 .DS_Store
 node_modules
 doc
+.elixir_ls
