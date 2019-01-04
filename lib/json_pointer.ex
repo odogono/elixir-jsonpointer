@@ -59,13 +59,13 @@ defmodule JSONPointer do
       {:ok, "milk"}
 
       iex> JSONPointer.get( %{ "contents" => [ "milk", "butter", "eggs" ]}, "/contents/2" )
-      {:ok, "eggs"} 
+      {:ok, "eggs"}
 
       iex> JSONPointer.get( %{ "milk" => true, "butter" => false}, "/cornflakes" )
       {:error, "token not found: cornflakes"}
 
       iex> JSONPointer.get( %{ "contents" => [ "milk", "butter", "eggs" ]}, "/contents/4" )
-      {:error, "list index out of bounds: 4"} 
+      {:error, "list index out of bounds: 4"}
   """
   @spec get(input, pointer) :: {:ok, t} | error_message
   def get(obj, pointer) do
@@ -266,7 +266,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Applies the given list of paths to the given container, raises an exception 
+  Applies the given list of paths to the given container, raises an exception
   on error
 
   ## Examples
@@ -297,7 +297,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Returns the given list of paths applied to a container, raises an exception 
+  Returns the given list of paths applied to a container, raises an exception
   on error
 
   ## Examples
@@ -357,7 +357,7 @@ defmodule JSONPointer do
   @doc """
   Applies a mapping of source paths to destination paths in the result
 
-  The mapping can optionally include a function which transforms the source 
+  The mapping can optionally include a function which transforms the source
   value before it is applied to the result.
 
   ## Examples
@@ -368,7 +368,7 @@ defmodule JSONPointer do
   """
   @spec transform(map(), transform_mapping) :: map()
   def transform(src, mapping) do
-    result = Enum.reduce(mapping, %{}, fn 
+    result = Enum.reduce(mapping, %{}, fn
         {dst_path,transform}, acc when is_function(transform) -> set!(acc, dst_path, transform.() )
         {src_path,dst_path}, acc -> set!(acc, dst_path, get!(src, src_path))
         {src_path,dst_path, transform}, acc -> set!(acc, dst_path, transform.(get!( src, src_path)))
@@ -380,7 +380,7 @@ defmodule JSONPointer do
   Applies a mapping of source paths to destination paths in the result, raises an
   error on exception
 
-  The mapping can optionally include a function which transforms the source 
+  The mapping can optionally include a function which transforms the source
   value before it is applied to the result.
 
   ## Examples
@@ -430,7 +430,7 @@ defmodule JSONPointer do
     raise ArgumentError, message: "invalid object: #{object}"
   end
 
-  # begins the descent into a container using the specified pointer  
+  # begins the descent into a container using the specified pointer
   defp walk_container(operation, object, pointer, value) when is_list(pointer) do
     [token | tokens] = pointer
     walk_container(operation, nil, object, token, tokens, value)
@@ -856,7 +856,7 @@ defmodule JSONPointer do
          pointer
          |> String.trim_leading("/")
          |> String.split("/")
-         |> Enum.map(&URI.decode/1)
+        #  |> Enum.map(&URI.decode/1) # NOTE - decoding uri parts is not spec compliant (and not needed) - so removed
          |> Enum.map(&JSONPointer.unescape/1)}
 
       _ ->

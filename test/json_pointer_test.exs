@@ -2,42 +2,10 @@ defmodule JSONPointerTest do
   use ExUnit.Case
   doctest JSONPointer
 
-  test "get" do
-    obj = %{
-      "a" => 1,
-      "b" => %{"c" => 2},
-      "d" => %{"e" => [%{"a" => 3}, %{"b" => 4}, %{"c" => 5}]},
-      "f" => [6, 7],
-      "200" => %{"a" => "b"}
-    }
-
-    assert JSONPointer.get(obj, "/a") == {:ok, 1}
-    assert JSONPointer.get(obj, "/b/c") == {:ok, 2}
-
-    assert JSONPointer.get(obj, "/d/e/0/a") == {:ok, 3}
-    assert JSONPointer.get(obj, "/d/e/1/b") == {:ok, 4}
-    assert JSONPointer.get(obj, "/d/e/2/c") == {:ok, 5}
-    assert JSONPointer.get(obj, "/f/0") == {:ok, 6}
-
-    assert JSONPointer.get([], "/2") == {:error, "list index out of bounds: 2"}
-    assert JSONPointer.get([], "/2/3") == {:error, "list index out of bounds: 2"}
-    assert JSONPointer.get(obj, "/d/e/3") == {:error, "list index out of bounds: 3"}
-
-    assert JSONPointer.get(%{}, "") == {:ok, %{}}
-
-    assert JSONPointer.get(obj, "/200") == {:ok, %{"a" => "b"}}
-
-    assert JSONPointer.get(obj, ["d", "e", "1", "b"]) == {:ok, 4}
-
-    # passing a string an the object raises an error
-    assert_raise ArgumentError, "invalid object: { \"unencoded\":\"json\" }", fn ->
-      JSONPointer.get("{ \"unencoded\":\"json\" }", "/unencoded")
-    end
-  end
-
-  test "get URI fragment" do
-    obj = %{
+  defp rfc_data,
+    do: %{
       "foo" => ["bar", "baz"],
+      "bar" => %{ "baz" => 10 },
       "" => 0,
       "a/b" => 1,
       "c%d" => 2,
@@ -49,19 +17,105 @@ defmodule JSONPointerTest do
       "m~n" => 8
     }
 
-    assert JSONPointer.get(obj, "#") == {:ok, obj}
-    assert JSONPointer.get(obj, "#/foo") == {:ok, ["bar", "baz"]}
-    assert JSONPointer.get(obj, "#/foo/0") == {:ok, "bar"}
-    assert JSONPointer.get(obj, "#/") == {:ok, 0}
-    assert JSONPointer.get(obj, "#/a~1b") == {:ok, 1}
-    assert JSONPointer.get(obj, "#/c%25d") == {:ok, 2}
-    assert JSONPointer.get(obj, "#/e%5Ef") == {:ok, 3}
-    assert JSONPointer.get(obj, "#/g%7Ch") == {:ok, 4}
-    assert JSONPointer.get(obj, "#/i%5Cj") == {:ok, 5}
-    assert JSONPointer.get(obj, "#/k%22l") == {:ok, 6}
-    assert JSONPointer.get(obj, "#/%20") == {:ok, 7}
-    assert JSONPointer.get(obj, "#/m~0n") == {:ok, 8}
+  defp nested_data,
+    do: %{
+      "a" => 1,
+      "b" => %{"c" => 2},
+      "d" => %{"e" => [%{"a" => 3}, %{"b" => 4}, %{"c" => 5}]},
+      "f" => [6, 7],
+      "200" => %{"a" => "b"}
+    }
+
+  defp book_store_data(),
+    do: %{
+      "store" => %{
+        "book" => [
+          %{
+            "category" => "reference",
+            "author" => "Nigel Rees",
+            "title" => "Sayings of the Century",
+            "price" => 8.95
+          },
+          %{
+            "category" => "fiction",
+            "author" => "Evelyn Waugh",
+            "title" => "Sword of Honour",
+            "price" => 12.99
+          },
+          %{
+            "category" => "fiction",
+            "author" => "Herman Melville",
+            "title" => "Moby Dick",
+            "isbn" => "0-553-21311-3",
+            "price" => 8.99
+          },
+          %{
+            "category" => "fiction",
+            "author" => "J. R. R. Tolkien",
+            "title" => "The Lord of the Rings",
+            "isbn" => "0-395-19395-8",
+            "price" => 22.99
+          }
+        ],
+        "bicycle" => %{
+          "color" => "red",
+          "price" => 19.95
+        }
+      }
+    }
+
+  test "get rfc" do
+    assert JSONPointer.get!(rfc_data(), "") ==         rfc_data()
+    assert JSONPointer.get!(rfc_data(), "/foo") ==     rfc_data()["foo"]
+    assert JSONPointer.get!(rfc_data(), "/foo/0") ==   "bar"
+    assert JSONPointer.get!(rfc_data(), "/bar") ==     rfc_data()["bar"]
+    assert JSONPointer.get!(rfc_data(), "/bar/baz") == 10
+    assert JSONPointer.get!(rfc_data(), "/") ==        0
+    assert JSONPointer.get!(rfc_data(), "/a~1b") ==    1
+    assert JSONPointer.get!(rfc_data(), "/c%d") ==     2
+    assert JSONPointer.get!(rfc_data(), "/e^f") ==     3
+    assert JSONPointer.get!(rfc_data(), "/g|h") ==     4
+    assert JSONPointer.get!(rfc_data(), "/i\\j") ==    5
+    assert JSONPointer.get!(rfc_data(), "/k\"l") ==    6
+    assert JSONPointer.get!(rfc_data(), "/ ") ==       7
+    assert JSONPointer.get!(rfc_data(), "/m~0n") ==    8
+
+    # starting with fragments
+    assert JSONPointer.get(rfc_data(), "#") == {:ok, rfc_data()}
+    assert JSONPointer.get(rfc_data(), "#/foo") == {:ok, ["bar", "baz"]}
+    assert JSONPointer.get(rfc_data(), "#/foo/0") == {:ok, "bar"}
+    assert JSONPointer.get(rfc_data(), "#/") == {:ok, 0}
+    assert JSONPointer.get(rfc_data(), "#/a~1b") == {:ok, 1}
+
+    # this library used to support escaped uri fragments, but this was not spec compliant and so removed
+    assert JSONPointer.get(rfc_data(), "#/c%25d") == {:error, "token not found: c%25d"}
   end
+
+  test "get expanded" do
+    assert JSONPointer.get(nested_data(), "/a") == {:ok, 1}
+    assert JSONPointer.get(nested_data(), "/b/c") == {:ok, 2}
+
+    assert JSONPointer.get(nested_data(), "/d/e/0/a") == {:ok, 3}
+    assert JSONPointer.get(nested_data(), "/d/e/1/b") == {:ok, 4}
+    assert JSONPointer.get(nested_data(), "/d/e/2/c") == {:ok, 5}
+    assert JSONPointer.get(nested_data(), "/f/0") == {:ok, 6}
+
+    assert JSONPointer.get([], "/2") == {:error, "list index out of bounds: 2"}
+    assert JSONPointer.get([], "/2/3") == {:error, "list index out of bounds: 2"}
+    assert JSONPointer.get(nested_data(), "/d/e/3") == {:error, "list index out of bounds: 3"}
+
+    assert JSONPointer.get(%{}, "") == {:ok, %{}}
+
+    assert JSONPointer.get(nested_data(), "/200") == {:ok, %{"a" => "b"}}
+
+    assert JSONPointer.get(nested_data(), ["d", "e", "1", "b"]) == {:ok, 4}
+
+    # passing a string an the object raises an error
+    assert_raise ArgumentError, "invalid object: { \"unencoded\":\"json\" }", fn ->
+      JSONPointer.get("{ \"unencoded\":\"json\" }", "/unencoded")
+    end
+  end
+
 
   test "get using wildcard" do
     data = book_store_data()
@@ -113,9 +167,8 @@ defmodule JSONPointerTest do
   end
 
   test "set using wildcard" do
-    data = book_store_data()
 
-    assert JSONPointer.set(data, "/store/book/**/author", "unknown") ==
+    assert JSONPointer.set(book_store_data(), "/store/book/**/author", "unknown") ==
              {:ok,
               %{
                 "store" => %{
@@ -152,7 +205,7 @@ defmodule JSONPointerTest do
               }, nil}
 
     # using a wildcard to replace all instances within a list
-    assert JSONPointer.set(data, "/store/book/**", %{"status" => "recalled"}) ==
+    assert JSONPointer.set(book_store_data(), "/store/book/**", %{"status" => "recalled"}) ==
              {:ok,
               %{
                 "store" => %{
@@ -166,7 +219,7 @@ defmodule JSONPointerTest do
                 }
               }, nil}
 
-    assert JSONPointer.set(data, "/store/book/**/price", 5.99) ==
+    assert JSONPointer.set(book_store_data(), "/store/book/**/price", 5.99) ==
              {:ok,
               %{
                 "store" => %{
@@ -202,7 +255,7 @@ defmodule JSONPointerTest do
                 }
               }, nil}
 
-    assert JSONPointer.set(data, "/store/**/price", 34.95) ==
+    assert JSONPointer.set(book_store_data(), "/store/**/price", 34.95) ==
              {:ok,
               %{
                 "store" => %{
@@ -344,7 +397,6 @@ defmodule JSONPointerTest do
     end)
   end
 
-
   test "hydrate" do
     tests = [
       {
@@ -448,6 +500,8 @@ defmodule JSONPointerTest do
     assert JSONPointer.parse("/initial/**/**") == {:ok, ["initial", "**", "**"]}
 
     assert JSONPointer.parse(["some", "where", "over"]) == {:ok, ["some", "where", "over"]}
+
+    assert JSONPointer.parse("/c%d") == {:ok, ["c%d"]}
   end
 
   test "transform" do
@@ -466,7 +520,7 @@ defmodule JSONPointerTest do
       "speed": 3.12,
       "deg": 272,
       "clouds": 12
-  }) |> Jason.decode!
+  }) |> Jason.decode!()
 
     time = :os.system_time(:seconds)
 
@@ -478,50 +532,13 @@ defmodule JSONPointerTest do
         {"/dt", "/datetime", fn val -> val |> DateTime.from_unix!() |> DateTime.to_iso8601() end}
       ])
 
-    assert result == {:ok, %{
-             "created_at" => time,
-             "datetime" => "2018-03-13T12:00:00Z",
-             "description" => "few clouds",
-             "temp" => 11
-           } }
-  end
-
-  def book_store_data() do
-    %{
-      "store" => %{
-        "book" => [
-          %{
-            "category" => "reference",
-            "author" => "Nigel Rees",
-            "title" => "Sayings of the Century",
-            "price" => 8.95
-          },
-          %{
-            "category" => "fiction",
-            "author" => "Evelyn Waugh",
-            "title" => "Sword of Honour",
-            "price" => 12.99
-          },
-          %{
-            "category" => "fiction",
-            "author" => "Herman Melville",
-            "title" => "Moby Dick",
-            "isbn" => "0-553-21311-3",
-            "price" => 8.99
-          },
-          %{
-            "category" => "fiction",
-            "author" => "J. R. R. Tolkien",
-            "title" => "The Lord of the Rings",
-            "isbn" => "0-395-19395-8",
-            "price" => 22.99
-          }
-        ],
-        "bicycle" => %{
-          "color" => "red",
-          "price" => 19.95
-        }
-      }
-    }
+    assert result ==
+             {:ok,
+              %{
+                "created_at" => time,
+                "datetime" => "2018-03-13T12:00:00Z",
+                "description" => "few clouds",
+                "temp" => 11
+              }}
   end
 end

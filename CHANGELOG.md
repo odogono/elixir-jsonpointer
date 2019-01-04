@@ -4,6 +4,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v2.4.0
+### Fixed
+- pointers are no longer uri decoded, so the rfc example of "/c%d" now works correctly
+
+
 ## v2.3.0
 ### Changed
 - JSONPointer.apply changed to JSONPointer.transform
