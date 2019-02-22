@@ -478,7 +478,7 @@ defmodule JSONPointer do
   # leaf operation: remove from list
   defp walk_container(operation, _parent, list, token, tokens, _value)
        when is_remove_from_list(operation, list, tokens) do
-    case Integer.parse(token) do
+    case parse_number(token) do
       {index, _rem} ->
         {:ok, apply_into(list, index, nil), Enum.at(list, index)}
 
@@ -490,14 +490,13 @@ defmodule JSONPointer do
   # leaf operation: set token to value on a map
   defp walk_container(operation, _parent, map, "-", tokens, value)
        when is_set_map(operation, map, tokens) do
-        {:ok, apply_into(map, "-", value), nil}
+    {:ok, apply_into(map, "-", value), nil}
   end
 
   # leaf operation: set token to value on a map
   defp walk_container(operation, _parent, map, token, tokens, value)
        when is_set_map(operation, map, tokens) do
-
-    case Integer.parse(token) do
+    case parse_number(token) do
       {index, _rem} ->
         # the token turned out to be an array index, so convert the value into a list
         {:ok, apply_into([], index, value), nil}
@@ -538,7 +537,7 @@ defmodule JSONPointer do
   # leaf operation: set token(index) to value on a list
   defp walk_container(operation, _parent, list, token, tokens, value)
        when is_set_list(operation, list, tokens) do
-    case Integer.parse(token) do
+    case parse_number(token) do
       {index, _rem} ->
         {:ok, apply_into(list, index, value), Enum.at(list, index)}
 
@@ -555,7 +554,7 @@ defmodule JSONPointer do
   # leaf operation: no value for list, so we determine the container depending on the token
   defp walk_container(operation, parent, list, token, tokens, value)
        when is_set_list_nil_child(operation, parent, tokens, list) do
-    case Integer.parse(token) do
+    case parse_number(token) do
       {index, _rem} ->
         {:ok, apply_into([], index, value), nil}
 
@@ -586,7 +585,7 @@ defmodule JSONPointer do
     if token == "**" do
       {:ok, list, nil}
     else
-      case Integer.parse(token) do
+      case parse_number(token) do
         {index, _rem} ->
           if index < Enum.count(list) && Enum.at(list, index) != nil do
             {:ok, Enum.at(list, index), nil}
@@ -594,7 +593,7 @@ defmodule JSONPointer do
             {:error, "list index out of bounds: #{index}", list}
           end
 
-        :error ->
+        _ ->
           {:error, "token not found: #{token}", list}
       end
     end
@@ -708,14 +707,17 @@ defmodule JSONPointer do
 
           # re-apply the altered tree back into our map
           if res == :ok do
-              {res, apply_into(map, token, sub), rem}
+            {res, apply_into(map, token, sub), rem}
           else
             {res, sub, rem}
           end
 
         :error ->
           new_container = if next_token == "-", do: [], else: %{}
-          {res, sub, rem} = walk_container(operation, map, new_container, next_token, next_tokens, value)
+
+          {res, sub, rem} =
+            walk_container(operation, map, new_container, next_token, next_tokens, value)
+
           {res, apply_into(map, token, sub), rem}
       end
 
@@ -762,7 +764,7 @@ defmodule JSONPointer do
     [next_token | tokens] = tokens
 
     result =
-      case Integer.parse(token) do
+      case parse_number(token) do
         {index, _rem} ->
           {res, sub, rem} =
             walk_container(operation, list, Enum.at(list, index), next_token, tokens, value)
@@ -782,7 +784,7 @@ defmodule JSONPointer do
     [next_token | tokens] = tokens
 
     result =
-      case Integer.parse(token) do
+      case parse_number(token) do
         {index, _rem} ->
           if (operation == :get or operation == :has) and index >= Enum.count(list) do
             {:error, "list index out of bounds: #{index}", list}
@@ -806,7 +808,7 @@ defmodule JSONPointer do
        when is_set_nil_container(operation, container) do
     [next_token | tokens] = tokens
 
-    case Integer.parse(token) do
+    case parse_number(token) do
       {index, _rem} ->
         {res, sub, rem} = walk_container(operation, [], [], next_token, tokens, value)
         # re-apply the returned result back into the current list
@@ -882,7 +884,7 @@ defmodule JSONPointer do
          |> String.trim_leading("/")
          |> String.split("/")
          #  |> Enum.map(&URI.decode/1) # NOTE - decoding uri parts is not spec compliant (and not needed) - so removed
-         |> Enum.map(&JSONPointer.unescape/1)}
+         |> Enum.map(&unescape/1)}
 
       _ ->
         {:error, "invalid json pointer", pointer}
@@ -906,4 +908,8 @@ defmodule JSONPointer do
       list
     end
   end
+
+  defp parse_number("0"), do: {0, 0}
+  defp parse_number(<<"0", rest::binary>>), do: "0" <> rest
+  defp parse_number(val), do: Integer.parse(val)
 end

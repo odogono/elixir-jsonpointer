@@ -23,7 +23,8 @@ defmodule JSONPointerTest do
       "b" => %{"c" => 2},
       "d" => %{"e" => [%{"a" => 3}, %{"b" => 4}, %{"c" => 5}]},
       "f" => [6, 7],
-      "200" => %{"a" => "b"}
+      "200" => %{"a" => "b"},
+      "01" => 8
     }
 
   defp book_store_data(),
@@ -116,6 +117,11 @@ defmodule JSONPointerTest do
     end
   end
 
+  test "special array rule" do
+    assert JSONPointer.get!(nested_data(), "/01") == 8
+    assert JSONPointer.get(["zero", "one", "two"], "/01") == {:error, "token not found: 01"}
+  end
+
   test "get using wildcard" do
     data = book_store_data()
     assert JSONPointer.get(data, "/store/bicycle/color") == {:ok, "red"}
@@ -173,13 +179,14 @@ defmodule JSONPointerTest do
 
     assert JSONPointer.set([], "/1/-", "five") == {:ok, [nil, ["five"]], nil}
 
-    assert JSONPointer.set(%{"a" => 1}, "/-", "six") == {:ok, %{ "a" => 1, "-" => "six"}, nil}
+    assert JSONPointer.set(%{"a" => 1}, "/-", "six") == {:ok, %{"a" => 1, "-" => "six"}, nil}
 
-    assert JSONPointer.set( [], "/-", "seven") == {:ok, ["seven"], nil}
+    assert JSONPointer.set([], "/-", "seven") == {:ok, ["seven"], nil}
 
-    assert JSONPointer.set( %{}, "/-", "eight") == {:ok, %{ "-" => "eight" }, nil}
+    assert JSONPointer.set(%{}, "/-", "eight") == {:ok, %{"-" => "eight"}, nil}
 
-    assert JSONPointer.set( %{ "f" => %{} }, "/f/-", "nine") == {:ok, %{ "f" => %{ "-" => "nine" } }, nil}
+    assert JSONPointer.set(%{"f" => %{}}, "/f/-", "nine") ==
+             {:ok, %{"f" => %{"-" => "nine"}}, nil}
   end
 
   test "set using wildcard" do
