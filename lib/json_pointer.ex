@@ -411,21 +411,13 @@ defmodule JSONPointer do
 
   # set the list at index to val
   defp apply_into(list, index, val) when is_list(list) do
-    if index do
-      # ensure the list has the capacity for this index
-      list |> ensure_list_size(index + 1) |> List.replace_at(index, val)
-    else
-      val
-    end
+    # ensure the list has the capacity for this index
+    list |> ensure_list_size(index + 1) |> List.replace_at(index, val)
   end
 
   # set the key to val within a map
   defp apply_into(map, key, val) when is_map(map) do
-    if key do
-      Map.put(map, key, val)
-    else
-      val
-    end
+    Map.put(map, key, val)
   end
 
   # when an empty pointer has been provided, simply return the incoming object
@@ -460,18 +452,20 @@ defmodule JSONPointer do
   end
 
   # leaf operation: remove from map
+  defp walk_container(operation, _parent, map, "**", tokens, _value)
+       when is_remove_from_map(operation, map, tokens) do
+    {:ok, nil, map}
+  end
+
+  # leaf operation: remove from map
   defp walk_container(operation, _parent, map, token, tokens, _value)
        when is_remove_from_map(operation, map, tokens) do
-    if token == "**" do
-      {:ok, nil, map}
-    else
-      case Map.fetch(map, token) do
-        {:ok, existing} ->
-          {:ok, Map.delete(map, token), existing}
+    case Map.fetch(map, token) do
+      {:ok, existing} ->
+        {:ok, Map.delete(map, token), existing}
 
-        :error ->
-          {:error, "json pointer key not found: #{token}", map}
-      end
+      :error ->
+        {:error, "json pointer key not found: #{token}", map}
     end
   end
 
@@ -564,38 +558,42 @@ defmodule JSONPointer do
   end
 
   # leaf operation: does map have token?
+  defp walk_container(operation, _parent, map, "**", tokens, _value)
+       when is_get_map(operation, map, tokens) do
+    {:ok, map, nil}
+  end
+
+  # leaf operation: does map have token?
   defp walk_container(operation, _parent, map, token, tokens, _value)
        when is_get_map(operation, map, tokens) do
-    if token == "**" do
-      {:ok, map, nil}
-    else
-      case Map.fetch(map, token) do
-        {:ok, existing} ->
-          {:ok, existing, nil}
+    case Map.fetch(map, token) do
+      {:ok, existing} ->
+        {:ok, existing, nil}
 
-        :error ->
-          {:error, "token not found: #{token}", map}
-      end
+      :error ->
+        {:error, "token not found: #{token}", map}
     end
+  end
+
+  # leaf operation: does list have index?
+  defp walk_container(operation, _parent, list, "**", tokens, _value)
+       when is_get_list(operation, list, tokens) do
+    {:ok, list, nil}
   end
 
   # leaf operation: does list have index?
   defp walk_container(operation, _parent, list, token, tokens, _value)
        when is_get_list(operation, list, tokens) do
-    if token == "**" do
-      {:ok, list, nil}
-    else
-      case parse_number(token) do
-        {index, _rem} ->
-          if index < Enum.count(list) && Enum.at(list, index) != nil do
-            {:ok, Enum.at(list, index), nil}
-          else
-            {:error, "list index out of bounds: #{index}", list}
-          end
+    case parse_number(token) do
+      {index, _rem} ->
+        if index < Enum.count(list) && Enum.at(list, index) != nil do
+          {:ok, Enum.at(list, index), nil}
+        else
+          {:error, "list index out of bounds: #{index}", list}
+        end
 
-        _ ->
-          {:error, "token not found: #{token}", list}
-      end
+      _ ->
+        {:error, "token not found: #{token}", list}
     end
   end
 
