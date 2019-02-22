@@ -5,7 +5,7 @@ defmodule JSONPointerTest do
   defp rfc_data,
     do: %{
       "foo" => ["bar", "baz"],
-      "bar" => %{ "baz" => 10 },
+      "bar" => %{"baz" => 10},
       "" => 0,
       "a/b" => 1,
       "c%d" => 2,
@@ -65,20 +65,20 @@ defmodule JSONPointerTest do
     }
 
   test "get rfc" do
-    assert JSONPointer.get!(rfc_data(), "") ==         rfc_data()
-    assert JSONPointer.get!(rfc_data(), "/foo") ==     rfc_data()["foo"]
-    assert JSONPointer.get!(rfc_data(), "/foo/0") ==   "bar"
-    assert JSONPointer.get!(rfc_data(), "/bar") ==     rfc_data()["bar"]
+    assert JSONPointer.get!(rfc_data(), "") == rfc_data()
+    assert JSONPointer.get!(rfc_data(), "/foo") == rfc_data()["foo"]
+    assert JSONPointer.get!(rfc_data(), "/foo/0") == "bar"
+    assert JSONPointer.get!(rfc_data(), "/bar") == rfc_data()["bar"]
     assert JSONPointer.get!(rfc_data(), "/bar/baz") == 10
-    assert JSONPointer.get!(rfc_data(), "/") ==        0
-    assert JSONPointer.get!(rfc_data(), "/a~1b") ==    1
-    assert JSONPointer.get!(rfc_data(), "/c%d") ==     2
-    assert JSONPointer.get!(rfc_data(), "/e^f") ==     3
-    assert JSONPointer.get!(rfc_data(), "/g|h") ==     4
-    assert JSONPointer.get!(rfc_data(), "/i\\j") ==    5
-    assert JSONPointer.get!(rfc_data(), "/k\"l") ==    6
-    assert JSONPointer.get!(rfc_data(), "/ ") ==       7
-    assert JSONPointer.get!(rfc_data(), "/m~0n") ==    8
+    assert JSONPointer.get!(rfc_data(), "/") == 0
+    assert JSONPointer.get!(rfc_data(), "/a~1b") == 1
+    assert JSONPointer.get!(rfc_data(), "/c%d") == 2
+    assert JSONPointer.get!(rfc_data(), "/e^f") == 3
+    assert JSONPointer.get!(rfc_data(), "/g|h") == 4
+    assert JSONPointer.get!(rfc_data(), "/i\\j") == 5
+    assert JSONPointer.get!(rfc_data(), "/k\"l") == 6
+    assert JSONPointer.get!(rfc_data(), "/ ") == 7
+    assert JSONPointer.get!(rfc_data(), "/m~0n") == 8
 
     # starting with fragments
     assert JSONPointer.get(rfc_data(), "#") == {:ok, rfc_data()}
@@ -115,7 +115,6 @@ defmodule JSONPointerTest do
       JSONPointer.get("{ \"unencoded\":\"json\" }", "/unencoded")
     end
   end
-
 
   test "get using wildcard" do
     data = book_store_data()
@@ -166,8 +165,24 @@ defmodule JSONPointerTest do
              {:ok, [%{"test" => [nil, "expected"]}], nil}
   end
 
-  test "set using wildcard" do
+  test "set with /-" do
+    assert JSONPointer.set([1, 2], "/-", "three") == {:ok, [1, 2, "three"], nil}
 
+    assert JSONPointer.set(%{}, "/f/g/h/foo/-", "four") ==
+             {:ok, %{"f" => %{"g" => %{"h" => %{"foo" => ["four"]}}}}, nil}
+
+    assert JSONPointer.set([], "/1/-", "five") == {:ok, [nil, ["five"]], nil}
+
+    assert JSONPointer.set(%{"a" => 1}, "/-", "six") == {:ok, %{ "a" => 1, "-" => "six"}, nil}
+
+    assert JSONPointer.set( [], "/-", "seven") == {:ok, ["seven"], nil}
+
+    assert JSONPointer.set( %{}, "/-", "eight") == {:ok, %{ "-" => "eight" }, nil}
+
+    assert JSONPointer.set( %{ "f" => %{} }, "/f/-", "nine") == {:ok, %{ "f" => %{ "-" => "nine" } }, nil}
+  end
+
+  test "set using wildcard" do
     assert JSONPointer.set(book_store_data(), "/store/book/**/author", "unknown") ==
              {:ok,
               %{

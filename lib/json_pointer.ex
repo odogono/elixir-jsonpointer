@@ -8,8 +8,11 @@ defmodule JSONPointer do
   @type pointer_list :: {String.t(), t}
   @type container :: map | list
   @type error_message :: {:error, msg}
-  @typep transform_fn :: ((any()) -> any())
-  @typep transform_mapping :: { String.t(), String.t() } | { String.t(), String.t(), transform_fn } | { String.t(), (() -> any()) }
+  @typep transform_fn :: (any() -> any())
+  @typep transform_mapping ::
+           {String.t(), String.t()}
+           | {String.t(), String.t(), transform_fn}
+           | {String.t(), (() -> any())}
 
   defguardp is_remove_from_map(operation, map, tokens)
             when operation == :remove and tokens == [] and is_map(map)
@@ -220,7 +223,6 @@ defmodule JSONPointer do
   defp dehydrate_container(value, acc, result) when is_map(value) do
     Enum.reduce(value, result, fn {k, v}, racc ->
       racc ++ dehydrate_container(v, [k | acc], result)
-      # IO.puts "[dehydrate_container] ? #{[k | acc]} = #{Poison.encode!(racc)}"
     end)
   end
 
@@ -353,7 +355,6 @@ defmodule JSONPointer do
     end
   end
 
-
   @doc """
   Applies a mapping of source paths to destination paths in the result
 
@@ -368,11 +369,18 @@ defmodule JSONPointer do
   """
   @spec transform(map(), transform_mapping) :: map()
   def transform(src, mapping) do
-    result = Enum.reduce(mapping, %{}, fn
-        {dst_path,transform}, acc when is_function(transform) -> set!(acc, dst_path, transform.() )
-        {src_path,dst_path}, acc -> set!(acc, dst_path, get!(src, src_path))
-        {src_path,dst_path, transform}, acc -> set!(acc, dst_path, transform.(get!( src, src_path)))
-    end)
+    result =
+      Enum.reduce(mapping, %{}, fn
+        {dst_path, transform}, acc when is_function(transform) ->
+          set!(acc, dst_path, transform.())
+
+        {src_path, dst_path}, acc ->
+          set!(acc, dst_path, get!(src, src_path))
+
+        {src_path, dst_path, transform}, acc ->
+          set!(acc, dst_path, transform.(get!(src, src_path)))
+      end)
+
     {:ok, result}
   end
 
@@ -390,13 +398,16 @@ defmodule JSONPointer do
 
   """
   @spec transform!(map(), transform_mapping) :: map()
-  def transform!(src,mapping) do
-    case transform(src,mapping) do
+  def transform!(src, mapping) do
+    case transform(src, mapping) do
       {:ok, result} -> result
       {:error, msg} -> raise ArgumentError, message: msg
     end
   end
 
+  defp apply_into(list, "-", val) when is_list(list) do
+    list ++ [val]
+  end
 
   # set the list at index to val
   defp apply_into(list, index, val) when is_list(list) do
@@ -477,8 +488,15 @@ defmodule JSONPointer do
   end
 
   # leaf operation: set token to value on a map
+  defp walk_container(operation, _parent, map, "-", tokens, value)
+       when is_set_map(operation, map, tokens) do
+        {:ok, apply_into(map, "-", value), nil}
+  end
+
+  # leaf operation: set token to value on a map
   defp walk_container(operation, _parent, map, token, tokens, value)
        when is_set_map(operation, map, tokens) do
+
     case Integer.parse(token) do
       {index, _rem} ->
         # the token turned out to be an array index, so convert the value into a list
@@ -512,6 +530,11 @@ defmodule JSONPointer do
     {:ok, value, nil}
   end
 
+  defp walk_container(operation, _parent, list, "-", tokens, value)
+       when is_set_list(operation, list, tokens) do
+    {:ok, apply_into(list, "-", value), nil}
+  end
+
   # leaf operation: set token(index) to value on a list
   defp walk_container(operation, _parent, list, token, tokens, value)
        when is_set_list(operation, list, tokens) do
@@ -522,6 +545,11 @@ defmodule JSONPointer do
       :error ->
         {:error, "invalid json pointer invalid index #{token}", list}
     end
+  end
+
+  defp walk_container(operation, parent, list, "-", tokens, value)
+       when is_set_list_nil_child(operation, parent, tokens, list) do
+    {:ok, apply_into([], "-", value), nil}
   end
 
   # leaf operation: no value for list, so we determine the container depending on the token
@@ -680,17 +708,14 @@ defmodule JSONPointer do
 
           # re-apply the altered tree back into our map
           if res == :ok do
-            if next_token == "**" do
               {res, apply_into(map, token, sub), rem}
-            else
-              {res, apply_into(map, token, sub), rem}
-            end
           else
             {res, sub, rem}
           end
 
         :error ->
-          {res, sub, rem} = walk_container(operation, map, %{}, next_token, next_tokens, value)
+          new_container = if next_token == "-", do: [], else: %{}
+          {res, sub, rem} = walk_container(operation, map, new_container, next_token, next_tokens, value)
           {res, apply_into(map, token, sub), rem}
       end
 
@@ -856,7 +881,7 @@ defmodule JSONPointer do
          pointer
          |> String.trim_leading("/")
          |> String.split("/")
-        #  |> Enum.map(&URI.decode/1) # NOTE - decoding uri parts is not spec compliant (and not needed) - so removed
+         #  |> Enum.map(&URI.decode/1) # NOTE - decoding uri parts is not spec compliant (and not needed) - so removed
          |> Enum.map(&JSONPointer.unescape/1)}
 
       _ ->
