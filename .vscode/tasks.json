@@ -13,6 +13,7 @@
             "type": "shell",
             "group": "test",
             "presentation": {
+                "clear": true,
                 "echo": true,
                 "reveal": "always",
                 "focus": false,
@@ -36,6 +37,7 @@
             "type": "shell",
             "group": "test",
             "presentation": {
+                "clear": true,
                 "echo": true,
                 "reveal": "always",
                 "focus": false,
@@ -54,6 +56,7 @@
             "group": "test",
             "type": "shell",
             "presentation": {
+                "clear": true,
                 "echo": true,
                 "reveal": "always",
                 "focus": false,
@@ -69,8 +72,8 @@
             "label": "Store Current Test",
             "group": "test",
             "type": "shell",
-            "command": "echo",
-            "args": [ "-n",  "${relativeFile}:${lineNumber} > ${workspaceRoot}/.vscode/STORED_TEST"],
+            "command": "${workspaceRoot}/.vscode/write_stored_test.sh",
+            "args": [ "${relativeFile}:${lineNumber}", "${workspaceRoot}/.vscode/STORED_TEST"],
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -82,8 +85,8 @@
             "label": "Store Current Test File",
             "group": "test",
             "type": "process",
-            "command": "echo",
-            "args": [ "-n", "${relativeFile}", ">", "${workspaceRoot}/.vscode/STORED_TEST"],
+            "command": "${workspaceRoot}/.vscode/write_stored_test.sh",
+            "args": [ "${relativeFile}", "${workspaceRoot}/.vscode/STORED_TEST"],
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -106,8 +109,8 @@
         },
         {
             "label": "Run Stored Test",
-            "command": "mix",
-            "args": ["test", "$(cat ${workspaceRoot}/.vscode/STORED_TEST)" ],
+            "command": "${workspaceRoot}/.vscode/run_stored_test.sh",
+            "args": ["${workspaceRoot}/.vscode/STORED_TEST" ],
             "type": "shell",
             "group": "test",
             "problemMatcher": [
@@ -116,6 +119,7 @@
                 "$mixTestFailure"
             ],
             "presentation": {
+                "clear": true,
                 "echo": true,
                 "reveal": "always",
                 "focus": false,

@@ -4,6 +4,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v2.5.0
+### Added
+- support for special array rules - /01 is not evaluated to an integer
+- the /- pointer when used with set either appends the value to the end of a list, or 
+creates a new list with the value
+
+
 ## v2.4.0
 ### Fixed
 - pointers are no longer uri decoded, so the rfc example of "/c%d" now works correctly

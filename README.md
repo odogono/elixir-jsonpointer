@@ -14,7 +14,7 @@ Add a dependency to your project `mix.exs`:
 ```Elixir
 
 def deps do
-  [{:odgn_json_pointer, "~> 2.4"}]
+  [{:odgn_json_pointer, "~> 2.5"}]
 end
 
 ```
