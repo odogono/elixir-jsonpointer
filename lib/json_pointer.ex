@@ -1,5 +1,5 @@
 defmodule JSONPointer do
-  @type input :: map()
+  @type input :: map() | list
   @type pointer :: String.t() | [String.t()]
   @type t :: nil | true | false | list | float | integer | String.t() | map
   @type msg :: String.t()
@@ -19,6 +19,9 @@ defmodule JSONPointer do
 
   defguardp is_remove_from_list(operation, list, tokens)
             when operation == :remove and tokens == [] and is_list(list)
+
+  defguardp is_add_list(operation, list, tokens)
+            when operation == :add and tokens == [] and is_list(list)
 
   defguardp is_set_map(operation, map, tokens)
             when operation == :set and tokens == [] and is_map(map)
@@ -41,8 +44,8 @@ defmodule JSONPointer do
   defguardp is_set_list_no_tokens(operation, list)
             when operation == :set and is_list(list)
 
-  defguardp is_set_remove_map(operation, map)
-            when (operation == :set or operation == :remove) and is_map(map)
+  defguardp is_add_set_remove_map(operation, map)
+            when (operation == :add or operation == :set or operation == :remove) and is_map(map)
 
   defguardp is_set_remove_list(operation, list)
             when (operation == :set or operation == :remove) and is_list(list)
@@ -167,6 +170,14 @@ defmodule JSONPointer do
     case walk_container(:set, obj, pointer, value) do
       {:ok, result, _existing} -> result
       {:error, msg, _} -> raise ArgumentError, message: msg
+    end
+  end
+
+  @spec add(input, pointer, t) :: {:ok, t, existing} | error_message
+  def add(obj,pointer,value) do
+    case walk_container(:add, obj, pointer, value) do
+      {:ok, result, existing} -> {:ok, result, existing}
+      {:error, msg, _} -> {:error, msg}
     end
   end
 
@@ -405,6 +416,10 @@ defmodule JSONPointer do
     end
   end
 
+  defp insert_into(list, index, val) when is_list(list) do
+    list |> ensure_list_size(index + 1) |> List.insert_at(index, val)
+  end
+
   defp apply_into(list, "-", val) when is_list(list) do
     list ++ [val]
   end
@@ -490,6 +505,7 @@ defmodule JSONPointer do
   # leaf operation: set token to value on a map
   defp walk_container(operation, _parent, map, token, tokens, value)
        when is_set_map(operation, map, tokens) do
+
     case parse_number(token) do
       {index, _rem} ->
         # the token turned out to be an array index, so convert the value into a list
@@ -526,6 +542,17 @@ defmodule JSONPointer do
   defp walk_container(operation, _parent, list, "-", tokens, value)
        when is_set_list(operation, list, tokens) do
     {:ok, apply_into(list, "-", value), nil}
+  end
+
+  defp walk_container(operation, _parent, list, token, tokens, value)
+       when is_add_list(operation, list, tokens) do
+      case parse_number(token) do
+        {index, _rem} ->
+          {:ok, insert_into(list, index, value), Enum.at(list, index)}
+
+        :error ->
+          {:error, "invalid json pointer invalid index #{token}", list}
+      end
   end
 
   # leaf operation: set token(index) to value on a list
@@ -693,7 +720,7 @@ defmodule JSONPointer do
 
   # recursively walk through a map container
   defp walk_container(operation, _parent, map, token, tokens, value)
-       when is_set_remove_map(operation, map) do
+       when is_add_set_remove_map(operation, map) do
     [next_token | next_tokens] = tokens
 
     result =
@@ -863,9 +890,6 @@ defmodule JSONPointer do
       iex> JSONPointer.parse("/fridge/butter")
       {:ok, [ "fridge", "butter"] }
   """
-
-  # def parse(pointer) when is_binary(pointer), do: parse(String.to_char_list(pointer))
-
   def parse(""), do: {:ok, []}
 
   def parse(pointer) when is_list(pointer), do: {:ok, pointer}
@@ -909,5 +933,7 @@ defmodule JSONPointer do
 
   defp parse_number("0"), do: {0, 0}
   defp parse_number(<<"0", rest::binary>>), do: "0" <> rest
+  defp parse_number(val) when is_integer(val), do: {val,0}
+  defp parse_number(val) when is_float(val), do: {Kernel.trunc(val),0}
   defp parse_number(val), do: Integer.parse(val)
 end

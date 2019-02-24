@@ -314,6 +314,11 @@ defmodule JSONPointerTest do
               }, nil}
   end
 
+  test "add" do
+    assert JSONPointer.add(%{"foo" => ["bar", "baz"]}, "/foo/1", "qux") ==
+             {:ok, %{"foo" => ["bar", "qux", "baz"]}, "baz"}
+  end
+
   test "remove" do
     assert JSONPointer.remove(%{"example" => "hello"}, "/example") == {:ok, %{}, "hello"}
     assert JSONPointer.remove(%{"a" => %{"b" => 5}}, "/a/b") == {:ok, %{"a" => %{}}, 5}
