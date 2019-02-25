@@ -314,9 +314,20 @@ defmodule JSONPointerTest do
               }, nil}
   end
 
-  test "add" do
-    assert JSONPointer.add(%{"foo" => ["bar", "baz"]}, "/foo/1", "qux") ==
-             {:ok, %{"foo" => ["bar", "qux", "baz"]}, "baz"}
+  describe "add" do
+    test "add to list" do
+      assert JSONPointer.add(%{"foo" => ["bar", "baz"]}, "/foo/1", "qux") ==
+               {:ok, %{"foo" => ["bar", "qux", "baz"]}, "baz"}
+    end
+
+    test "add to map" do
+      assert JSONPointer.add(%{"foo" => "bar"}, "/baz", "qux") ==
+               {:ok, %{"baz" => "qux", "foo" => "bar"}, nil}
+    end
+
+    test "add to non-existent target" do
+      assert JSONPointer.add(%{"foo" => "bar"}, "/baz/bat", "qux") == {:error, "token not found on target: baz"}
+    end
   end
 
   test "remove" do
