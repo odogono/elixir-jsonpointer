@@ -101,9 +101,9 @@ defmodule JSONPointerTest do
     assert JSONPointer.get(nested_data(), "/d/e/2/c") == {:ok, 5}
     assert JSONPointer.get(nested_data(), "/f/0") == {:ok, 6}
 
-    assert JSONPointer.get([], "/2") == {:error, "list index out of bounds: 2"}
-    assert JSONPointer.get([], "/2/3") == {:error, "list index out of bounds: 2"}
-    assert JSONPointer.get(nested_data(), "/d/e/3") == {:error, "list index out of bounds: 3"}
+    assert JSONPointer.get([], "/2") == {:error, "index out of bounds: 2"}
+    assert JSONPointer.get([], "/2/3") == {:error, "index out of bounds: 2"}
+    assert JSONPointer.get(nested_data(), "/d/e/3") == {:error, "index out of bounds: 3"}
 
     assert JSONPointer.get(%{}, "") == {:ok, %{}}
 
@@ -118,8 +118,8 @@ defmodule JSONPointerTest do
   end
 
   test "special array rule" do
-    assert JSONPointer.get!(nested_data(), "/01") == 8
-    assert JSONPointer.get(["zero", "one", "two"], "/01") == {:error, "token not found: 01"}
+    # assert JSONPointer.get!(nested_data(), "/01") == 8
+    assert JSONPointer.get(["zero", "one", "two"], "/01") == {:error, "invalid index: 01"}
   end
 
   test "get using wildcard" do
@@ -161,14 +161,14 @@ defmodule JSONPointerTest do
     assert JSONPointer.set([], "/0", "first") == {:ok, ["first"], nil}
     assert JSONPointer.set([], "/1", "second") == {:ok, [nil, "second"], nil}
     assert JSONPointer.set([], "/0/test", "prudent") == {:ok, [%{"test" => "prudent"}], nil}
+  end
 
-    # NOTE: there is an argument that the below should raise, since it is intended that the first token
-    # is referencing an array index. but it still works
+  test "set empty array" do
     assert JSONPointer.set(%{}, "/0/test/0", "expected") ==
              {:ok, %{"0" => %{"test" => ["expected"]}}, nil}
 
-    assert JSONPointer.set([], "/0/test/1", "expected") ==
-             {:ok, [%{"test" => [nil, "expected"]}], nil}
+    # assert JSONPointer.set([], "/0/test/1", "expected") ==
+    #          {:ok, [%{"test" => [nil, "expected"]}], nil}
   end
 
   test "set with /-" do
@@ -318,15 +318,56 @@ defmodule JSONPointerTest do
     test "add to list" do
       assert JSONPointer.add(%{"foo" => ["bar", "baz"]}, "/foo/1", "qux") ==
                {:ok, %{"foo" => ["bar", "qux", "baz"]}, "baz"}
+
+      # out of bounds (upper)
+      assert JSONPointer.add(%{"bar" => [1, 2]}, "/bar/8", "5") ==
+               {:error, "index out of bounds: 8", [1, 2]}
+
+      # out of bounds (lower)
+      assert JSONPointer.add(%{"bar" => [1, 2]}, "/bar/-1", "5") ==
+               {:error, "index out of bounds: -1", [1, 2]}
+
+      # 0 can be an array index or object element name
+      assert JSONPointer.add(%{"foo" => 1}, "/0", "bar") ==
+               {:ok, %{"foo" => 1, "0" => "bar"}, nil}
+
+      assert JSONPointer.add(["foo"], "/1", "bar") ==
+               {:ok, ["foo", "bar"], nil}
+
+      #  object operation on array target
+      assert JSONPointer.add(["foo", "baz"], "/bar", 42) ==
+               {:error, "invalid index: bar", ["foo", "baz"]}
+
+      assert JSONPointer.add(["foo", "sil"], "/1", ["bar", "baz"]) ==
+               {:ok, ["foo", ["bar", "baz"], "sil"], "sil"}
+
+      # add with bad number
+      assert JSONPointer.add(["foo", "sil"], "/1e0", "bar") ==
+               {:error, "invalid index: 1e0", ["foo", "sil"]}
     end
 
     test "add to map" do
       assert JSONPointer.add(%{"foo" => "bar"}, "/baz", "qux") ==
                {:ok, %{"baz" => "qux", "foo" => "bar"}, nil}
-    end
 
-    test "add to non-existent target" do
-      assert JSONPointer.add(%{"foo" => "bar"}, "/baz/bat", "qux") == {:error, "token not found on target: baz"}
+      # replaces existing field
+      assert JSONPointer.add(%{"foo" => nil}, "/foo", 1) ==
+               {:ok, %{"foo" => 1}, nil}
+
+      # top level object
+      assert JSONPointer.add(%{}, "/foo", 1) ==
+               {:ok, %{"foo" => 1}, nil}
+
+      assert JSONPointer.add(%{}, "/", 1) ==
+               {:ok, %{"" => 1}, nil}
+
+      #  add to non-existent target
+      assert JSONPointer.add(%{"foo" => "bar"}, "/baz/bat", "qux") ==
+               {:error, "key not found on object: baz", %{"foo" => "bar"}}
+
+      # replacing root is possible with add
+      assert JSONPointer.add(%{"foo" => "bar"}, "", %{"baz" => "qux"}) ==
+               {:ok, %{"baz" => "qux"}, %{"foo" => "bar"}}
     end
   end
 
@@ -456,7 +497,7 @@ defmodule JSONPointerTest do
         [],
         [{"/a", 14.5}],
         # because of the attempt to set a key on an array
-        {:error, "invalid json pointer invalid index a"}
+        {:error, "invalid index: a"}
       },
       {
         %{},
@@ -484,7 +525,7 @@ defmodule JSONPointerTest do
     }
 
     assert JSONPointer.merge(["foo", "bar"], %{"a" => false}) ==
-             {:error, "invalid json pointer invalid index a"}
+             {:error, "invalid index: a"}
 
     assert JSONPointer.merge(%{"a" => false}, %{"c" => true, "b" => 13}) ==
              {:ok, %{"a" => false, "b" => 13, "c" => true}}

@@ -4,6 +4,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## Added
+- add/add! - adds values indicated by pointers
+- options can be passed to operations. only option so far is :strict which affects set/add behaviour
+
+## Changed
+- stricter parsing of integer indexes
+- increased terseness of error messages 
+
 ## v2.5.0
 ### Added
 - support for special array rules - /01 is not evaluated to an integer

@@ -17,11 +17,11 @@ defmodule JSONPointer do
   @typep strict :: boolean
 
   @type options :: %{
-    optional(:strict) => strict
-  }
+          optional(:strict) => strict
+        }
 
-  @default_options %{ :strict => false }
-  @default_add_options %{ :strict => true }
+  @default_options %{:strict => false}
+  @default_add_options %{:strict => true}
 
   defguardp is_remove_from_map(operation, map, tokens)
             when operation == :remove and tokens == [] and is_map(map)
@@ -34,9 +34,12 @@ defmodule JSONPointer do
 
   defguardp is_add_set_map(operation, map, tokens)
             when (operation == :add or operation == :set) and tokens == [] and is_map(map)
+
+  defguardp is_add_set_empty_map(operation, map, tokens)
+            when (operation == :add or operation == :set) and tokens == [] and map == %{}
+
   defguardp is_set_map(operation, map, tokens)
             when operation == :set and tokens == [] and is_map(map)
-
 
   defguardp is_set_list(operation, list, tokens)
             when operation == :set and tokens == [] and is_list(list)
@@ -83,10 +86,10 @@ defmodule JSONPointer do
       {:error, "token not found: cornflakes"}
 
       iex> JSONPointer.get( %{ "contents" => [ "milk", "butter", "eggs" ]}, "/contents/4" )
-      {:error, "list index out of bounds: 4"}
+      {:error, "index out of bounds: 4"}
   """
   @spec get(input, pointer) :: {:ok, t} | error_message
-  def get(obj, pointer, options \\ @default_options ) do
+  def get(obj, pointer, options \\ @default_options) do
     case walk_container(:get, obj, pointer, nil, options) do
       {:ok, value, _} -> {:ok, value}
       {:error, msg, _} -> {:error, msg}
@@ -120,7 +123,7 @@ defmodule JSONPointer do
       false
   """
   @spec has(input, pointer, options) :: boolean
-  def has(obj, pointer, options \\ @default_options ) do
+  def has(obj, pointer, options \\ @default_options) do
     case walk_container(:has, obj, pointer, nil, options) do
       {:ok, _obj, _existing} -> true
       {:error, _, _} -> false
@@ -138,7 +141,7 @@ defmodule JSONPointer do
       {:error, "json pointer key not found: sandwich", %{ "butter" => true, "milk" => true}}
   """
   @spec remove(input, pointer, options) :: {:ok, t, removed} | error_message
-  def remove(object, pointer, options \\ @default_options ) do
+  def remove(object, pointer, options \\ @default_options) do
     walk_container(:remove, object, pointer, nil, options)
   end
 
@@ -185,11 +188,36 @@ defmodule JSONPointer do
     end
   end
 
+  @doc """
+  Adds a value using the given pointer
+
+  Follows the JSON patch behaviour specified in rfc6902
+
+  ## Examples
+      iex> JSONPointer.add( %{ "a" => %{"b" => %{}}}, "/a/b/c", ["foo", "bar"] )
+      {:ok, %{"a" => %{"b" => %{"c" => ["foo", "bar"]}}}, nil}
+  -
+  """
   @spec add(input, pointer, t) :: {:ok, t, existing} | error_message
-  def add(obj,pointer,value, options \\ @default_add_options ) do
+  def add(obj, pointer, value, options \\ @default_add_options) do
     case walk_container(:add, obj, pointer, value, options) do
       {:ok, result, existing} -> {:ok, result, existing}
-      {:error, msg, _} -> {:error, msg}
+      {:error, msg, target} -> {:error, msg, target}
+    end
+  end
+
+  @doc """
+  Adds a value using the given pointer, raises an error on exception
+
+  ## Examples
+      iex> JSONPointer.add!( %{ "a" => %{ "foo"  => 1 } }, "/a/b", true )
+      %{"a" => %{"foo" => 1, "b" => true}}
+  """
+  @spec add!(input, pointer, t) :: t | no_return
+  def add!(obj, pointer, value, options \\ @default_add_options) do
+    case add(obj, pointer, value, options) do
+      {:ok, result, _existing} -> result
+      {:error, msg, _} -> raise ArgumentError, message: msg
     end
   end
 
@@ -429,7 +457,7 @@ defmodule JSONPointer do
   end
 
   defp insert_into(list, index, val) when is_list(list) do
-    list |> ensure_list_size(index + 1) |> List.insert_at(index, val)
+    list |> ensure_list_size(index) |> List.insert_at(index, val)
   end
 
   defp apply_into(list, "-", val) when is_list(list) do
@@ -445,6 +473,12 @@ defmodule JSONPointer do
   # set the key to val within a map
   defp apply_into(map, key, val) when is_map(map) do
     Map.put(map, key, val)
+  end
+
+  # when an empty pointer has been provided and this is an add operation,
+  # replace the root
+  defp walk_container(:add, object, "", value, _options) do
+    {:ok, value, object}
   end
 
   # when an empty pointer has been provided, simply return the incoming object
@@ -479,13 +513,13 @@ defmodule JSONPointer do
   end
 
   # leaf operation: remove from map
-  defp walk_container(operation, _parent, map, "**", tokens, _value, options)
+  defp walk_container(operation, _parent, map, "**", tokens, _value, _options)
        when is_remove_from_map(operation, map, tokens) do
     {:ok, nil, map}
   end
 
   # leaf operation: remove from map
-  defp walk_container(operation, _parent, map, token, tokens, _value, options)
+  defp walk_container(operation, _parent, map, token, tokens, _value, _options)
        when is_remove_from_map(operation, map, tokens) do
     case Map.fetch(map, token) do
       {:ok, existing} ->
@@ -497,44 +531,57 @@ defmodule JSONPointer do
   end
 
   # leaf operation: remove from list
-  defp walk_container(operation, _parent, list, token, tokens, _value, options)
+  defp walk_container(operation, _parent, list, token, tokens, _value, _options)
        when is_remove_from_list(operation, list, tokens) do
     case parse_number(token) do
-      {index, _rem} ->
-        {:ok, apply_into(list, index, nil), Enum.at(list, index)}
+      {:error, msg} ->
+        {:error, msg, list}
 
-      :error ->
-        {:error, "invalid json pointer invalid index: #{token}", list}
+      index ->
+        {:ok, apply_into(list, index, nil), Enum.at(list, index)}
     end
   end
 
   # leaf operation: set token to value on a map
-  defp walk_container(operation, _parent, map, "-", tokens, value, options)
+  defp walk_container(operation, _parent, map, "-", tokens, value, _options)
        when is_set_map(operation, map, tokens) do
     {:ok, apply_into(map, "-", value), nil}
   end
 
-  # leaf operation: set token to value on a map
-  defp walk_container(operation, _parent, map, token, tokens, value, options)
-       when is_add_set_map(operation, map, tokens) do
+  # leaf operation: set token to value on an empty map
+  defp walk_container(operation, _parent, map, token, tokens, value, _options)
+       when is_add_set_empty_map(operation, map, tokens) do
+    # IO.puts("empty map #{token}")
+    # IO.inspect(map)
+
     case parse_number(token) do
-      {index, _rem} ->
+      {:error, _msg} ->
+        # this is ok, treat the token just as a string
+        {:ok, apply_into(map, token, value), nil}
+
+      index ->
         # the token turned out to be an array index, so convert the value into a list
         {:ok, apply_into([], index, value), nil}
+    end
+  end
+
+  # leaf operation: set token to value on a map
+  defp walk_container(operation, _parent, map, token, tokens, value, _options)
+       when is_add_set_map(operation, map, tokens) do
+    # IO.puts("uhh #{token}")
+    # IO.inspect(map)
+
+    case Map.fetch(map, token) do
+      {:ok, existing} ->
+        {:ok, apply_into(map, token, value), existing}
 
       :error ->
-        case Map.fetch(map, token) do
-          {:ok, existing} ->
-            {:ok, apply_into(map, token, value), existing}
-
-          :error ->
-            {:ok, apply_into(map, token, value), nil}
-        end
+        {:ok, apply_into(map, token, value), nil}
     end
   end
 
   # leaf operation: set wildcard to value on a list
-  defp walk_container(operation, _parent, list, "**", tokens, value, options)
+  defp walk_container(operation, _parent, list, "**", tokens, value, _options)
        when is_set_list(operation, list, tokens) do
     # replace each entry in the list with the value
     result =
@@ -545,64 +592,71 @@ defmodule JSONPointer do
     {:ok, result, nil}
   end
 
-  defp walk_container(operation, parent, _map, "**", tokens, value, options)
+  defp walk_container(operation, parent, _map, "**", tokens, value, _options)
        when is_set_map(operation, parent, tokens) do
     {:ok, value, nil}
   end
 
-  defp walk_container(operation, _parent, list, "-", tokens, value, options)
+  defp walk_container(operation, _parent, list, "-", tokens, value, _options)
        when is_set_list(operation, list, tokens) do
     {:ok, apply_into(list, "-", value), nil}
   end
 
   defp walk_container(operation, _parent, list, token, tokens, value, options)
        when is_add_list(operation, list, tokens) do
-      case parse_number(token) do
-        {index, _rem} ->
-          {:ok, insert_into(list, index, value), Enum.at(list, index)}
+    is_strict = Map.get(options, :strict)
 
-        :error ->
-          {:error, "invalid json pointer invalid index #{token}", list}
-      end
-  end
-
-  # leaf operation: set token(index) to value on a list
-  defp walk_container(operation, _parent, list, token, tokens, value, options)
-       when is_set_list(operation, list, tokens) do
     case parse_number(token) do
-      {index, _rem} ->
-        {:ok, apply_into(list, index, value), Enum.at(list, index)}
+      {:error, msg} ->
+        {:error, msg, list}
 
-      :error ->
-        {:error, "invalid json pointer invalid index #{token}", list}
+      index ->
+        if is_strict && (index < 0 || index > Enum.count(list)) do
+          {:error, "index out of bounds: #{index}", list}
+        else
+          {:ok, insert_into(list, index, value), Enum.at(list, index)}
+        end
     end
   end
 
-  defp walk_container(operation, parent, list, "-", tokens, value, options)
+  # leaf operation: set token(index) to value on a list
+  defp walk_container(operation, _parent, list, token, tokens, value, _options)
+       when is_set_list(operation, list, tokens) do
+    case parse_number(token) do
+      {:error, msg} ->
+        {:error, msg, list}
+
+      index ->
+        {:ok, apply_into(list, index, value), Enum.at(list, index)}
+    end
+  end
+
+  defp walk_container(operation, parent, list, "-", tokens, value, _options)
        when is_set_list_nil_child(operation, parent, tokens, list) do
     {:ok, apply_into([], "-", value), nil}
   end
 
   # leaf operation: no value for list, so we determine the container depending on the token
-  defp walk_container(operation, parent, list, token, tokens, value, options)
+  defp walk_container(operation, parent, list, token, tokens, value, _options)
        when is_set_list_nil_child(operation, parent, tokens, list) do
     case parse_number(token) do
-      {index, _rem} ->
-        {:ok, apply_into([], index, value), nil}
-
-      :error ->
+      {:error, _msg} ->
+        # this is fine, token is a string
         {:ok, apply_into(%{}, token, value), nil}
+
+      index ->
+        {:ok, apply_into([], index, value), nil}
     end
   end
 
   # leaf operation: does map have token?
-  defp walk_container(operation, _parent, map, "**", tokens, _value, options)
+  defp walk_container(operation, _parent, map, "**", tokens, _value, _options)
        when is_get_map(operation, map, tokens) do
     {:ok, map, nil}
   end
 
   # leaf operation: does map have token?
-  defp walk_container(operation, _parent, map, token, tokens, _value, options)
+  defp walk_container(operation, _parent, map, token, tokens, _value, _options)
        when is_get_map(operation, map, tokens) do
     case Map.fetch(map, token) do
       {:ok, existing} ->
@@ -620,18 +674,21 @@ defmodule JSONPointer do
   end
 
   # leaf operation: does list have index?
-  defp walk_container(operation, _parent, list, token, tokens, _value, options)
+  defp walk_container(operation, _parent, list, token, tokens, _value, _options)
        when is_get_list(operation, list, tokens) do
     case parse_number(token) do
-      {index, _rem} ->
+      {:error, msg} ->
+        {:error, msg, list}
+
+      index when is_binary(index) ->
+        {:error, "invalid index: #{token}", list}
+
+      index ->
         if index < Enum.count(list) && Enum.at(list, index) != nil do
           {:ok, Enum.at(list, index), nil}
         else
-          {:error, "list index out of bounds: #{index}", list}
+          {:error, "index out of bounds: #{index}", list}
         end
-
-      _ ->
-        {:error, "token not found: #{token}", list}
     end
   end
 
@@ -647,7 +704,15 @@ defmodule JSONPointer do
       :error ->
         result =
           Enum.reduce(map, %{}, fn {map_key, _map_value}, result ->
-            case walk_container(operation, map, Map.fetch!(map, map_key), "**", tokens, value, options) do
+            case walk_container(
+                   operation,
+                   map,
+                   Map.fetch!(map, map_key),
+                   "**",
+                   tokens,
+                   value,
+                   options
+                 ) do
               {:ok, rval, _res} ->
                 apply_into(result, map_key, rval)
 
@@ -671,7 +736,15 @@ defmodule JSONPointer do
       :error ->
         result =
           Enum.reduce(Map.keys(map), [], fn map_key, acc ->
-            case walk_container(operation, map, Map.fetch!(map, map_key), "**", tokens, value, options) do
+            case walk_container(
+                   operation,
+                   map,
+                   Map.fetch!(map, map_key),
+                   "**",
+                   tokens,
+                   value,
+                   options
+                 ) do
               {:ok, walk_val, _walk_res} ->
                 case walk_val do
                   _walk_result when is_list(walk_val) -> acc ++ walk_val
@@ -708,7 +781,8 @@ defmodule JSONPointer do
   end
 
   #
-  defp walk_container(operation, _parent, list, "**", tokens, value, options) when is_list(list) do
+  defp walk_container(operation, _parent, list, "**", tokens, value, options)
+       when is_list(list) do
     result =
       Enum.reduce(list, [], fn entry, acc ->
         case walk_container(operation, list, entry, "**", tokens, value, options) do
@@ -724,7 +798,7 @@ defmodule JSONPointer do
   end
 
   #
-  defp walk_container(_operation, _parent, map, "**", tokens, _value, options) do
+  defp walk_container(_operation, _parent, map, "**", tokens, _value, _options) do
     [next_token | _] = tokens
     {:error, "token not found: #{next_token}", map}
   end
@@ -753,12 +827,21 @@ defmodule JSONPointer do
         :error ->
           case is_strict do
             true ->
-              {:error, "token not found on target: #{token}", map}
+              {:error, "key not found on object: #{token}", map}
+
             _ ->
               new_container = if next_token == "-", do: [], else: %{}
 
               {res, sub, rem} =
-                walk_container(operation, map, new_container, next_token, next_tokens, value, options)
+                walk_container(
+                  operation,
+                  map,
+                  new_container,
+                  next_token,
+                  next_tokens,
+                  value,
+                  options
+                )
 
               {res, apply_into(map, token, sub), rem}
           end
@@ -808,39 +891,56 @@ defmodule JSONPointer do
 
     result =
       case parse_number(token) do
-        {index, _rem} ->
+        {:error, msg} ->
+          {:error, msg, list}
+
+        index ->
           {res, sub, rem} =
-            walk_container(operation, list, Enum.at(list, index), next_token, tokens, value, options)
+            walk_container(
+              operation,
+              list,
+              Enum.at(list, index),
+              next_token,
+              tokens,
+              value,
+              options
+            )
 
           # re-apply the returned result back into the current list - WHY!
           {res, apply_into(list, index, sub), rem}
-
-        _ ->
-          {:error, "invalid list index: #{token}", list}
       end
 
     result
   end
 
   # recursively walk through a list container
-  defp walk_container(operation, _parent, list, token, tokens, value, options) when is_list(list) do
+  defp walk_container(operation, _parent, list, token, tokens, value, options)
+       when is_list(list) do
     [next_token | tokens] = tokens
 
     result =
       case parse_number(token) do
-        {index, _rem} ->
+        {:error, msg} ->
+          {:error, msg, list}
+
+        index ->
           if (operation == :get or operation == :has) and index >= Enum.count(list) do
-            {:error, "list index out of bounds: #{index}", list}
+            {:error, "index out of bounds: #{index}", list}
           else
             {res, sub, rem} =
-              walk_container(operation, list, Enum.at(list, index), next_token, tokens, value, options)
+              walk_container(
+                operation,
+                list,
+                Enum.at(list, index),
+                next_token,
+                tokens,
+                value,
+                options
+              )
 
             # re-apply the returned result back into the current list - WHY!
             {res, sub, rem}
           end
-
-        _ ->
-          {:error, "invalid list index: #{token}", list}
       end
 
     result
@@ -852,7 +952,7 @@ defmodule JSONPointer do
     [next_token | tokens] = tokens
 
     case parse_number(token) do
-      {index, _rem} ->
+      index when is_integer(index) ->
         {res, sub, rem} = walk_container(operation, [], [], next_token, tokens, value, options)
         # re-apply the returned result back into the current list
         {res, apply_into([], index, sub), rem}
@@ -949,9 +1049,18 @@ defmodule JSONPointer do
     end
   end
 
-  defp parse_number("0"), do: {0, 0}
+  defp parse_number("0"), do: 0
   defp parse_number(<<"0", rest::binary>>), do: "0" <> rest
-  defp parse_number(val) when is_integer(val), do: {val,0}
-  defp parse_number(val) when is_float(val), do: {Kernel.trunc(val),0}
-  defp parse_number(val), do: Integer.parse(val)
+  defp parse_number(val) when is_integer(val), do: val
+  # defp parse_number(val) when is_float(val), do: {Kernel.trunc(val), 0}
+
+  defp parse_number(val) do
+    case Integer.parse(val) do
+      {int, rem} ->
+        if rem != "", do: {:error, "invalid index: #{val}"}, else: int
+
+      :error ->
+        {:error, "invalid index: #{val}"}
+    end
+  end
 end
