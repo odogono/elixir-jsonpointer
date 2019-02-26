@@ -4,23 +4,50 @@ defmodule JSONPointer do
   import JSONPointer.Serialize
   import JSONPointer.Utils
 
-  @type input :: map() | list
+  @typedoc """
+  the item on which the operations are applied
+  """
+  @type container :: map | list
+
+  @typedoc """
+  the JSON Pointer value
+  """
   @type pointer :: String.t() | [String.t()]
+
+  @typedoc """
+  return type
+  """
   @type t :: nil | true | false | list | float | integer | String.t() | map
-  @type msg :: String.t()
   @type existing :: t
   @type removed :: t
+
+  @typedoc """
+  a tuple of JSON Pointer and value
+  """
   @type pointer_list :: {String.t(), t}
-  @type container :: map | list
-  @type error_message :: {:error, msg}
+
+
+  @typedoc """
+  return error tuple
+  """
+  @type error_message :: {:error, String.t()}
+
   @typep transform_fn :: (any() -> any())
-  @typep transform_mapping ::
-           {String.t(), String.t()}
-           | {String.t(), String.t(), transform_fn}
-           | {String.t(), (() -> any())}
+
+  @typedoc """
+  argument passed to transform/2 mapping a pointer using a function or
+  another pointer
+  """
+  @type transform_mapping ::
+           {pointer, pointer}
+           | {pointer, pointer, transform_fn}
+           | {pointer, (() -> any())}
 
   @typep strict :: boolean
 
+  @typedoc """
+  options that may be passed to functions to control outcomes
+  """
   @type options :: %{
           optional(:strict) => strict
         }
@@ -45,7 +72,7 @@ defmodule JSONPointer do
       iex> JSONPointer.get( %{ "contents" => [ "milk", "butter", "eggs" ]}, "/contents/4" )
       {:error, "index out of bounds: 4"}
   """
-  @spec get(input, pointer) :: {:ok, t} | error_message
+  @spec get(container, pointer) :: {:ok, t} | error_message
   def get(obj, pointer, options \\ @default_options) do
     case walk_container(:get, obj, pointer, nil, options) do
       {:ok, value, _} -> {:ok, value}
@@ -61,7 +88,7 @@ defmodule JSONPointer do
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
       ** (ArgumentError) json pointer key not found: fridge
   """
-  @spec get!(input, pointer, options) :: t | no_return
+  @spec get!(container, pointer, options) :: t | no_return
   def get!(obj, pointer, options \\ @default_options) do
     case walk_container(:get, obj, pointer, nil, options) do
       {:ok, value, _} -> value
@@ -79,8 +106,8 @@ defmodule JSONPointer do
       iex> JSONPointer.has( %{ "milk" => true, "butter" => false}, "/cornflakes" )
       false
   """
-  @spec has(input, pointer, options) :: boolean
-  def has(obj, pointer, options \\ @default_options) do
+  @spec test(container, pointer, options) :: boolean
+  def test(obj, pointer, options \\ @default_options) do
     case walk_container(:has, obj, pointer, nil, options) do
       {:ok, _obj, _existing} -> true
       {:error, _, _} -> false
@@ -97,7 +124,7 @@ defmodule JSONPointer do
       iex> JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridge/sandwich" )
       {:error, "json pointer key not found: sandwich", %{ "butter" => true, "milk" => true}}
   """
-  @spec remove(input, pointer, options) :: {:ok, t, removed} | error_message
+  @spec remove(container, pointer, options) :: {:ok, t, removed} | error_message
   def remove(object, pointer, options \\ @default_options) do
     walk_container(:remove, object, pointer, nil, options)
   end
@@ -115,7 +142,7 @@ defmodule JSONPointer do
       iex> JSONPointer.set( %{"milk"=>"full"}, "/milk", "empty")
       {:ok, %{"milk" => "empty"}, "full"}
   """
-  @spec set(input, pointer, t, options) :: {:ok, t, existing} | error_message
+  @spec set(container, pointer, t, options) :: {:ok, t, existing} | error_message
   def set(obj, pointer, value, options \\ @default_options) do
     case walk_container(:set, obj, pointer, value, options) do
       {:ok, result, existing} -> {:ok, result, existing}
@@ -137,7 +164,7 @@ defmodule JSONPointer do
       iex> JSONPointer.set!( %{"milk"=>"full"}, "/milk", "empty")
       %{"milk" => "empty"}
   """
-  @spec set!(input, pointer, t, options) :: t | no_return
+  @spec set!(container, pointer, t, options) :: t | no_return
   def set!(obj, pointer, value, options \\ @default_options) do
     case walk_container(:set, obj, pointer, value, options) do
       {:ok, result, _existing} -> result
@@ -155,7 +182,7 @@ defmodule JSONPointer do
       {:ok, %{"a" => %{"b" => %{"c" => ["foo", "bar"]}}}, nil}
   -
   """
-  @spec add(input, pointer, t) :: {:ok, t, existing} | error_message
+  @spec add(container, pointer, t) :: {:ok, t, existing} | error_message
   def add(obj, pointer, value, options \\ @default_add_options) do
     case walk_container(:add, obj, pointer, value, options) do
       {:ok, result, existing} -> {:ok, result, existing}
@@ -170,7 +197,7 @@ defmodule JSONPointer do
       iex> JSONPointer.add!( %{ "a" => %{ "foo"  => 1 } }, "/a/b", true )
       %{"a" => %{"foo" => 1, "b" => true}}
   """
-  @spec add!(input, pointer, t) :: t | no_return
+  @spec add!(container, pointer, t) :: t | no_return
   def add!(obj, pointer, value, options \\ @default_add_options) do
     case add(obj, pointer, value, options) do
       {:ok, result, _existing} -> result
@@ -189,7 +216,7 @@ defmodule JSONPointer do
       {:ok, [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}] }
 
   """
-  @spec dehydrate(input) :: {:ok, pointer_list} | error_message
+  @spec dehydrate(container) :: {:ok, pointer_list} | error_message
   def dehydrate(object) do
     {:ok, dehydrate_container(object, [], [])}
   end
@@ -206,7 +233,7 @@ defmodule JSONPointer do
       [{"/a/0", 10}, {"/a/1/b", 12.5}, {"/c", 99}]
 
   """
-  @spec dehydrate!(input) :: pointer_list
+  @spec dehydrate!(container) :: pointer_list
   def dehydrate!(object) do
     dehydrate_container(object, [], [])
   end

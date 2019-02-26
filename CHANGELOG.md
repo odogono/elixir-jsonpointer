@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - options can be passed to operations. only option so far is :strict which affects set/add behaviour
 
 ## Changed
+- has/3 changed to test/3
 - stricter parsing of integer indexes
 - increased terseness of error messages 
 
