@@ -1,4 +1,7 @@
 defmodule JSONPointer do
+  @moduledoc """
+  An implementation of [JSON Pointer (RFC 6901)](http://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-08) for Elixir.
+  """
 
   import JSONPointer.Guards
   import JSONPointer.Serialize
@@ -18,14 +21,21 @@ defmodule JSONPointer do
   return type
   """
   @type t :: nil | true | false | list | float | integer | String.t() | map
+
+  @typedoc """
+  data that was affected by an operation
+  """
   @type existing :: t
+
+  @typedoc """
+  data that was removed by an operation
+  """
   @type removed :: t
 
   @typedoc """
   a tuple of JSON Pointer and value
   """
   @type pointer_list :: {String.t(), t}
-
 
   @typedoc """
   return error tuple
@@ -39,9 +49,9 @@ defmodule JSONPointer do
   another pointer
   """
   @type transform_mapping ::
-           {pointer, pointer}
-           | {pointer, pointer, transform_fn}
-           | {pointer, (() -> any())}
+          {pointer, pointer}
+          | {pointer, pointer, transform_fn}
+          | {pointer, (() -> any())}
 
   @typep strict :: boolean
 
@@ -54,7 +64,6 @@ defmodule JSONPointer do
 
   @default_options %{:strict => false}
   @default_add_options %{:strict => true}
-
 
   @doc """
   Retrieves the value indicated by the pointer from the object
@@ -85,6 +94,8 @@ defmodule JSONPointer do
   an error on exception
 
   ## Examples
+      iex> JSONPointer.get!( %{ "fridge" => %{ "milk" => true}}, "/fridge/milk" )
+      true
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
       ** (ArgumentError) json pointer key not found: fridge
   """
@@ -100,10 +111,10 @@ defmodule JSONPointer do
   Tests if an object has a value for a JSON pointer
 
   ## Examples
-      iex> JSONPointer.has( %{ "milk" => true, "butter" => false}, "/butter" )
+      iex> JSONPointer.test( %{ "milk" => true, "butter" => false}, "/butter" )
       true
 
-      iex> JSONPointer.has( %{ "milk" => true, "butter" => false}, "/cornflakes" )
+      iex> JSONPointer.test( %{ "milk" => true, "butter" => false}, "/cornflakes" )
       false
   """
   @spec test(container, pointer, options) :: boolean
@@ -180,7 +191,6 @@ defmodule JSONPointer do
   ## Examples
       iex> JSONPointer.add( %{ "a" => %{"b" => %{}}}, "/a/b/c", ["foo", "bar"] )
       {:ok, %{"a" => %{"b" => %{"c" => ["foo", "bar"]}}}, nil}
-  -
   """
   @spec add(container, pointer, t) :: {:ok, t, existing} | error_message
   def add(obj, pointer, value, options \\ @default_add_options) do
@@ -237,8 +247,6 @@ defmodule JSONPointer do
   def dehydrate!(object) do
     dehydrate_container(object, [], [])
   end
-
-
 
   @doc """
   Applies the given list of paths to the given container
@@ -640,75 +648,19 @@ defmodule JSONPointer do
   end
 
   #
-  defp walk_container(operation, _parent, map, "**", tokens, value, options)
-       when is_set_map_no_tokens(operation, map) do
-    [next_token | next_tokens] = tokens
-
-    case Map.fetch(map, next_token) do
-      {:ok, _existing} ->
-        walk_container(operation, map, map, next_token, next_tokens, value, options)
-
-      :error ->
-        result =
-          Enum.reduce(map, %{}, fn {map_key, _map_value}, result ->
-            case walk_container(
-                   operation,
-                   map,
-                   Map.fetch!(map, map_key),
-                   "**",
-                   tokens,
-                   value,
-                   options
-                 ) do
-              {:ok, rval, _res} ->
-                apply_into(result, map_key, rval)
-
-              {:error, msg, _value} ->
-                raise "error applying :set into map: #{msg}"
-            end
-          end)
-
-        {:ok, result, nil}
-    end
-  end
-
-  #
   defp walk_container(operation, _parent, map, "**", tokens, value, options) when is_map(map) do
     [next_token | next_tokens] = tokens
 
-    case Map.fetch(map, next_token) do
-      {:ok, _existing} ->
-        walk_container(operation, map, map, next_token, next_tokens, value, options)
-
-      :error ->
-        result =
-          Enum.reduce(Map.keys(map), [], fn map_key, acc ->
-            case walk_container(
-                   operation,
-                   map,
-                   Map.fetch!(map, map_key),
-                   "**",
-                   tokens,
-                   value,
-                   options
-                 ) do
-              {:ok, walk_val, _walk_res} ->
-                case walk_val do
-                  _walk_result when is_list(walk_val) -> acc ++ walk_val
-                  _walk_result -> acc ++ [walk_val]
-                end
-
-              {:error, _msg, _value} ->
-                acc
-            end
-          end)
-
-        if List.first(result) == nil do
-          {:error, "token not found: #{next_token}", result}
-        else
-          {:ok, result, nil}
-        end
-    end
+    next_result(
+      Map.fetch(map, next_token),
+      operation,
+      map,
+      "**",
+      next_token,
+      next_tokens,
+      value,
+      options
+    )
   end
 
   defp walk_container(operation, _parent, list, "**", tokens, value, options)
@@ -755,46 +707,16 @@ defmodule JSONPointer do
        when is_add_set_remove_map(operation, map) do
     [next_token | next_tokens] = tokens
 
-    is_strict = Map.get(options, :strict)
-
-    result =
-      case Map.fetch(map, token) do
-        {:ok, existing} ->
-          # catch the situation where the wildcard is the last token
-          {res, sub, rem} =
-            walk_container(operation, map, existing, next_token, next_tokens, value, options)
-
-          # re-apply the altered tree back into our map
-          if res == :ok do
-            {res, apply_into(map, token, sub), rem}
-          else
-            {res, sub, rem}
-          end
-
-        :error ->
-          case is_strict do
-            true ->
-              {:error, "key not found on object: #{token}", map}
-
-            _ ->
-              new_container = if next_token == "-", do: [], else: %{}
-
-              {res, sub, rem} =
-                walk_container(
-                  operation,
-                  map,
-                  new_container,
-                  next_token,
-                  next_tokens,
-                  value,
-                  options
-                )
-
-              {res, apply_into(map, token, sub), rem}
-          end
-      end
-
-    result
+    next_result(
+      Map.fetch(map, token),
+      operation,
+      map,
+      token,
+      next_token,
+      next_tokens,
+      value,
+      options
+    )
   end
 
   # recursively walk through a map container
@@ -911,7 +833,112 @@ defmodule JSONPointer do
     end
   end
 
+  defp next_result(:error, operation, map, "**", next_token, next_tokens, value, options)
+       when is_set_map_no_tokens(operation, map) do
+    result =
+      Enum.reduce(map, %{}, fn {map_key, _map_value}, result ->
+        case walk_container(
+               operation,
+               map,
+               Map.fetch!(map, map_key),
+               "**",
+               [next_token] ++ next_tokens,
+               value,
+               options
+             ) do
+          {:ok, rval, _res} ->
+            apply_into(result, map_key, rval)
 
+          {:error, msg, _value} ->
+            raise "error applying :set into map: #{msg}"
+        end
+      end)
 
+    {:ok, result, nil}
+  end
 
+  defp next_result(
+         {:ok, _existing},
+         operation,
+         map,
+         "**",
+         next_token,
+         next_tokens,
+         value,
+         options
+       ) do
+    walk_container(operation, map, map, next_token, next_tokens, value, options)
+  end
+
+  defp next_result(:error, operation, map, "**", next_token, next_tokens, value, options)
+       when is_map(map) do
+    result =
+      Enum.reduce(Map.keys(map), [], fn map_key, acc ->
+        operation
+        |> walk_container(
+          map,
+          Map.fetch!(map, map_key),
+          "**",
+          [next_token] ++ next_tokens,
+          value,
+          options
+        )
+        |> next_result(acc)
+      end)
+
+    if List.first(result) == nil do
+      {:error, "token not found: #{next_token}", result}
+    else
+      {:ok, result, nil}
+    end
+  end
+
+  defp next_result(
+         {:ok, existing},
+         operation,
+         map,
+         token,
+         next_token,
+         next_tokens,
+         value,
+         options
+       ) do
+    # catch the situation where the wildcard is the last token
+    {res, sub, rem} =
+      walk_container(operation, map, existing, next_token, next_tokens, value, options)
+
+    # re-apply the altered tree back into our map
+    if res == :ok do
+      {res, apply_into(map, token, sub), rem}
+    else
+      {res, sub, rem}
+    end
+  end
+
+  defp next_result(:error, operation, map, token, next_token, next_tokens, value, options) do
+    case Map.get(options, :strict) do
+      true ->
+        {:error, "key not found on object: #{token}", map}
+
+      _ ->
+        new_container = if next_token == "-", do: [], else: %{}
+
+        {res, sub, rem} =
+          walk_container(
+            operation,
+            map,
+            new_container,
+            next_token,
+            next_tokens,
+            value,
+            options
+          )
+
+        {res, apply_into(map, token, sub), rem}
+    end
+  end
+
+  defp next_result({:ok, walk_val, _walk_res}, acc) when is_list(walk_val), do: acc ++ walk_val
+  defp next_result({:ok, walk_val, _walk_res}, acc), do: acc ++ [walk_val]
+  defp next_result({:error, _msg, _value}, acc), do: acc
 end

@@ -27,7 +27,7 @@ defmodule JSONPointerTest do
       "01" => 8
     }
 
-  defp book_store_data(),
+  defp book_store_data,
     do: %{
       "store" => %{
         "book" => [
@@ -113,8 +113,8 @@ defmodule JSONPointerTest do
       assert JSONPointer.get(nested_data(), ["d", "e", "1", "b"]) == {:ok, 4}
 
       # passing a string an the object raises an error
-      assert_raise ArgumentError, "invalid object: { \"unencoded\":\"json\" }", fn ->
-        JSONPointer.get("{ \"unencoded\":\"json\" }", "/unencoded")
+      assert_raise ArgumentError, ~s(invalid object: { "unencoded":"json" }), fn ->
+        JSONPointer.get(~s({ "unencoded":"json" }), "/unencoded")
       end
     end
 
@@ -139,9 +139,11 @@ defmodule JSONPointerTest do
                {:ok, %{"color" => "red", "price" => 19.95}}
 
       assert JSONPointer.get(data, "/store/**") == {:ok, data["store"]}
-      # TODO: should probably select all the fields?
+
       assert JSONPointer.get(data, "/store/**/**") == {:error, "token not found: **"}
+
       assert JSONPointer.get(data, "/store/book/**") == {:ok, data["store"]["book"]}
+
       assert JSONPointer.get(data, "/store/book") == {:ok, data["store"]["book"]}
 
       assert JSONPointer.get(data, "/**/nothing") == {:error, "token not found: nothing"}

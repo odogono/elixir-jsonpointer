@@ -29,10 +29,11 @@ defmodule JsonPointer.Mixfile do
 
   defp deps do
     [
+      {:credo, "~> 1.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
       {:earmark, "~> 1.3.1", only: :dev, runtime: false},
       {:ex_doc, "~> 0.19.2", only: :dev, runtime: false},
-      {:jason, "~> 1.1.2", only: :test},
+      {:jason, "~> 1.1.2", only: [:dev, :test]},
     ]
   end
 
