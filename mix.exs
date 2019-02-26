@@ -11,6 +11,7 @@ defmodule JsonPointer.Mixfile do
       description: description(),
       package: package(),
       deps: deps(),
+      dialyzer: dialyzer(),
       docs: docs(),
       elixir: "~> 1.6",
       build_embedded: Mix.env() == :prod,
@@ -28,9 +29,16 @@ defmodule JsonPointer.Mixfile do
 
   defp deps do
     [
+      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
       {:earmark, "~> 1.3.1", only: :dev, runtime: false},
       {:ex_doc, "~> 0.19.2", only: :dev, runtime: false},
       {:jason, "~> 1.1.2", only: :test},
+    ]
+  end
+
+  defp dialyzer() do
+    [
+      ignore_warnings: "dialyzer.ignore"
     ]
   end
 
