@@ -111,14 +111,14 @@ defmodule JSONPointer do
   Tests if an object has a value for a JSON pointer
 
   ## Examples
-      iex> JSONPointer.test( %{ "milk" => true, "butter" => false}, "/butter" )
+      iex> JSONPointer.has!( %{ "milk" => true, "butter" => false}, "/butter" )
       true
 
-      iex> JSONPointer.test( %{ "milk" => true, "butter" => false}, "/cornflakes" )
+      iex> JSONPointer.has!( %{ "milk" => true, "butter" => false}, "/cornflakes" )
       false
   """
-  @spec test(container, pointer, options) :: boolean
-  def test(obj, pointer, options \\ @default_options) do
+  @spec has!(container, pointer, options) :: boolean
+  def has!(obj, pointer, options \\ @default_options) do
     case walk_container(:has, obj, pointer, nil, options) do
       {:ok, _obj, _existing} -> true
       {:error, _, _} -> false

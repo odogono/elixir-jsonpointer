@@ -562,24 +562,24 @@ defmodule JSONPointerTest do
     end
   end
 
-  describe "test" do
-    test "test" do
+  describe "has" do
+    test "has" do
       obj = %{
         "bla" => %{"test" => "expected"},
         "foo" => [["hello"]],
         "abc" => "bla"
       }
 
-      assert JSONPointer.test(obj, "/bla") == true
-      assert JSONPointer.test(obj, "/foo/0/0") == true
-      assert JSONPointer.test(obj, "/bla/test") == true
+      assert JSONPointer.has!(obj, "/bla") == true
+      assert JSONPointer.has!(obj, "/foo/0/0") == true
+      assert JSONPointer.has!(obj, "/bla/test") == true
 
-      assert JSONPointer.test(obj, "/not-existing") == false
-      assert JSONPointer.test(obj, "/not-existing/bla") == false
-      assert JSONPointer.test(obj, "/test/1/bla") == false
-      assert JSONPointer.test(obj, "/0") == false
-      assert JSONPointer.test([], "/2") == false
-      assert JSONPointer.test([], "/2/3") == false
+      assert JSONPointer.has!(obj, "/not-existing") == false
+      assert JSONPointer.has!(obj, "/not-existing/bla") == false
+      assert JSONPointer.has!(obj, "/test/1/bla") == false
+      assert JSONPointer.has!(obj, "/0") == false
+      assert JSONPointer.has!([], "/2") == false
+      assert JSONPointer.has!([], "/2/3") == false
     end
   end
 
