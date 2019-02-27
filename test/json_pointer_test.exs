@@ -583,6 +583,33 @@ defmodule JSONPointerTest do
     end
   end
 
+  describe "test" do
+    test "test" do
+      obj = %{
+        "fridge" => %{
+          "milk" => "semi skimmed",
+          "eggs" => 5,
+          "salad" => ["avocado", "spinach", "tomatoes"]
+        }
+      }
+
+      assert JSONPointer.test(obj, "/fridge/milk", "semi skimmed") == {:ok, obj}
+      assert JSONPointer.test(obj, "/fridge/milk", "skimmed") == {:error, "not equal"}
+      assert JSONPointer.test(obj, "/fridge/eggs", "5") == {:error, "string not equal to number"}
+
+      assert JSONPointer.test(obj, "/fridge/salad", ["avocado", "spinach", "tomatoes"]) ==
+               {:ok, obj}
+
+      assert JSONPointer.test(obj, "/fridge/salad", ["spinach", "tomatoes", "avocado"]) ==
+               {:error, "not equal"}
+
+      assert JSONPointer.test(obj, "/", obj) == {:ok, obj}
+
+      assert JSONPointer.test(%{"/" => 9, "~1" => 10}, "/~01", 10) ==
+               {:ok, %{"/" => 9, "~1" => 10}}
+    end
+  end
+
   describe "transform" do
     test "transform" do
       input = ~s({
@@ -638,6 +665,8 @@ defmodule JSONPointerTest do
                {:ok, ["some", "where", "over"]}
 
       assert JSONPointer.Utils.parse("/c%d") == {:ok, ["c%d"]}
+
+      assert JSONPointer.Utils.parse("/~01") == {:ok, ["~1"]}
     end
   end
 end

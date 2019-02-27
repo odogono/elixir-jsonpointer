@@ -108,7 +108,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Tests if an object has a value for a JSON pointer
+  Returns true if the given JSON Pointer resolves to a value
 
   ## Examples
       iex> JSONPointer.has!( %{ "milk" => true, "butter" => false}, "/butter" )
@@ -122,6 +122,52 @@ defmodule JSONPointer do
     case walk_container(:has, obj, pointer, nil, options) do
       {:ok, _obj, _existing} -> true
       {:error, _, _} -> false
+    end
+  end
+
+  @doc """
+  Tests whether a JSON Pointer equals the given value
+
+  """
+  @spec test(container, pointer, t, options) :: {:ok, t} | error_message
+  def test(obj, pointer, value, options \\ @default_options) do
+    # with {:ok, result, existing} <- walk_container(:has, obj, pointer, nil, options)
+    #   is_equal <- are_equal?
+    #   do
+
+    #   else
+    #     {:error, msg, _ } -> {:error, msg}
+    #   end
+
+    case walk_container(:get, obj, pointer, nil, options) do
+      {:ok, result, _} ->
+        # IO.puts("are_equal?  #{pointer} => '#{value}' '#{result}'")
+
+        case are_equal?(value, result) do
+          {:ok, _} -> {:ok, obj}
+          {:error, msg} -> {:error, msg}
+        end
+
+      {:error, msg, _} ->
+        {:error, msg}
+    end
+  end
+
+  # defp are_equal?(val1, val2) when is_binary(val1) and is_binary(val2),
+  #   do:
+  #     if(String.equivalent?(val1, val2), do: {:ok, true}, else: {:error, "string not equivalent"})
+
+  defp are_equal?(val1, val2) when is_binary(val1) and is_number(val2),
+    do: {:error, "string not equal to number"}
+
+  defp are_equal?(val1, val2) when is_number(val1) and is_binary(val2),
+    do: {:error, "number not equal to string"}
+
+  defp are_equal?(val1, val2) do
+    if val1 == val2 do
+      {:ok, true}
+    else
+      {:error, "not equal"}
     end
   end
 
@@ -558,7 +604,7 @@ defmodule JSONPointer do
   end
 
   defp walk_container(operation, _parent, list, "-", tokens, value, _options)
-       when is_set_list(operation, list, tokens) do
+       when is_add_set_list(operation, list, tokens) do
     {:ok, apply_into(list, "-", value), nil}
   end
 
@@ -613,6 +659,18 @@ defmodule JSONPointer do
   defp walk_container(operation, _parent, map, "**", tokens, _value, _options)
        when is_get_map(operation, map, tokens) do
     {:ok, map, nil}
+  end
+
+  # leaf operation: does map have token?
+  defp walk_container(operation, _parent, map, "", tokens, _value, _options)
+       when is_get_map(operation, map, tokens) do
+    case Map.fetch(map, "") do
+      {:ok, existing} ->
+        {:ok, existing, nil}
+
+      :error ->
+        {:ok, map, nil}
+    end
   end
 
   # leaf operation: does map have token?
