@@ -372,7 +372,7 @@ defmodule JSONPointerTest do
 
       #  add to non-existent target
       assert JSONPointer.add(%{"foo" => "bar"}, "/baz/bat", "qux") ==
-               {:error, "key not found on object: baz", %{"foo" => "bar"}}
+               {:error, "path /baz does not exist", %{"foo" => "bar"}}
 
       # replacing root is possible with add
       assert JSONPointer.add(%{"foo" => "bar"}, "", %{"baz" => "qux"}) ==
@@ -605,8 +605,8 @@ defmodule JSONPointerTest do
       }
 
       assert JSONPointer.test(obj, "/fridge/milk", "semi skimmed") == {:ok, obj}
-      assert JSONPointer.test(obj, "/fridge/milk", "skimmed") == {:error, "not equal"}
-      assert JSONPointer.test(obj, "/fridge/eggs", "5") == {:error, "number not equal to string"}
+      assert JSONPointer.test(obj, "/fridge/milk", "skimmed") == {:error, "string not equivalent"}
+      assert JSONPointer.test(obj, "/fridge/eggs", "5") == {:error, "number is not equal to string"}
 
       assert JSONPointer.test(obj, "/fridge/salad", ["avocado", "spinach", "tomatoes"]) ==
                {:ok, obj}

@@ -158,18 +158,21 @@ defmodule JSONPointer do
   #     if(String.equivalent?(val1, val2), do: {:ok, true}, else: {:error, "string not equivalent"})
 
   defp are_equal?(val1, val2) when is_binary(val1) and is_number(val2),
-    do: {:error, "number not equal to string"}
+    do: {:error, "number is not equal to string"}
 
   defp are_equal?(val1, val2) when is_number(val1) and is_binary(val2),
-    do: {:error, "string not equal to number"}
+    do: {:error, "string is not equal to number"}
 
   defp are_equal?(val1, val2) do
     if val1 == val2 do
       {:ok, true}
     else
-      {:error, "not equal"}
+      are_not_equal_error(val1,val2)
     end
   end
+
+  defp are_not_equal_error(val1,val2) when is_binary(val1) and is_binary(val2), do: {:error, "string not equivalent"}
+  defp are_not_equal_error(_val1,_val2), do: {:error, "not equal"}
 
   @doc """
   Removes an attribute of object referenced by pointer
@@ -984,7 +987,7 @@ defmodule JSONPointer do
   defp next_result(:error, operation, map, token, next_token, next_tokens, value, options) do
     case Map.get(options, :strict) do
       true ->
-        {:error, "key not found on object: #{token}", map}
+        {:error, "path /#{token} does not exist", map}
 
       _ ->
         new_container = if next_token == "-", do: [], else: %{}
