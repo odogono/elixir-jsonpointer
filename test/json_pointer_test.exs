@@ -388,10 +388,10 @@ defmodule JSONPointerTest do
       assert JSONPointer.remove(%{"a" => %{"b" => %{"c" => "discard"}}}, "/a") ==
                {:ok, %{}, %{"b" => %{"c" => "discard"}}}
 
-      assert JSONPointer.remove(["alpha", "beta"], "/0") == {:ok, [nil, "beta"], "alpha"}
+      assert JSONPointer.remove(["alpha", "beta"], "/0") == {:ok, ["beta"], "alpha"}
 
       assert JSONPointer.remove(["alpha", %{"beta" => ["c", "d"]}], "/1/beta/0") ==
-               {:ok, ["alpha", %{"beta" => [nil, "d"]}], "c"}
+               {:ok, ["alpha", %{"beta" => ["d"]}], "c"}
     end
 
     test "remove using wildcard" do

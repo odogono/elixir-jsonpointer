@@ -415,6 +415,10 @@ defmodule JSONPointer do
     list |> ensure_list_size(index) |> List.insert_at(index, val)
   end
 
+  defp remove_from(list, index) when is_list(list) do
+    list |> List.pop_at(index)
+  end
+
   defp apply_into(list, "-", val) when is_list(list) do
     list ++ [val]
   end
@@ -493,7 +497,8 @@ defmodule JSONPointer do
         {:error, msg, list}
 
       index ->
-        {:ok, apply_into(list, index, nil), Enum.at(list, index)}
+        {removed, list} = remove_from(list, index)
+        {:ok, list, removed}
     end
   end
 

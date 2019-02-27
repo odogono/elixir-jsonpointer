@@ -11,7 +11,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Changed
 - has/3 changed to test/3
 - stricter parsing of integer indexes
-- increased terseness of error messages 
+- increased terseness of error messages
+- remove now actually reduces the list size, rather than replace with nil
 
 ## v2.5.0
 ### Added

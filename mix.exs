@@ -51,7 +51,7 @@ defmodule JsonPointer.Mixfile do
 
   defp package do
     [
-      name: "odgn_json_pointer",
+      name: "ODGN JSON Pointer",
       licenses: ["MIT"],
       maintainers: ["Alexander Veenendaal"],
       links: %{"GitHub" => "https://github.com/odogono/elixir-jsonpointer"},
