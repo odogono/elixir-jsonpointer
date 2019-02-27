@@ -36,9 +36,9 @@ defmodule JSONPointer.Utils do
   @spec unescape(String.t()) :: String.t()
   def unescape(str) do
     str
-    |> String.replace("~0", "~")
-    |> String.replace("~1", "/")
     |> String.replace("~2", "**")
+    |> String.replace("~1", "/")
+    |> String.replace("~0", "~")
   end
 
   @doc """
