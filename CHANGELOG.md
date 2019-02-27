@@ -4,15 +4,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## Added
+### Added
 - add/add! - adds values indicated by pointers
 - options can be passed to operations. only option so far is :strict which affects set/add behaviour
+- test - checks whether the given pointer has the given value
 
-## Changed
-- has/3 changed to test/3
+### Changed
+- has changed to has? as it returns a single value
 - stricter parsing of integer indexes
 - increased terseness of error messages
 - remove now actually reduces the list size, rather than replace with nil
+
+### Fixed
+- corrected parsing of /~01
+
 
 ## v2.5.0
 ### Added

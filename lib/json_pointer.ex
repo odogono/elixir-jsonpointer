@@ -111,14 +111,14 @@ defmodule JSONPointer do
   Returns true if the given JSON Pointer resolves to a value
 
   ## Examples
-      iex> JSONPointer.has!( %{ "milk" => true, "butter" => false}, "/butter" )
+      iex> JSONPointer.has?( %{ "milk" => true, "butter" => false}, "/butter" )
       true
 
-      iex> JSONPointer.has!( %{ "milk" => true, "butter" => false}, "/cornflakes" )
+      iex> JSONPointer.has?( %{ "milk" => true, "butter" => false}, "/cornflakes" )
       false
   """
-  @spec has!(container, pointer, options) :: boolean
-  def has!(obj, pointer, options \\ @default_options) do
+  @spec has?(container, pointer, options) :: boolean
+  def has?(obj, pointer, options \\ @default_options) do
     case walk_container(:has, obj, pointer, nil, options) do
       {:ok, _obj, _existing} -> true
       {:error, _, _} -> false
@@ -128,21 +128,15 @@ defmodule JSONPointer do
   @doc """
   Tests whether a JSON Pointer equals the given value
 
+  ## Examples
+    iex> JSONPointer.test( %{ "milk" => "skimmed", "butter" => false}, "/milk", "skimmed" )
+    {:ok, %{ "milk" => "skimmed", "butter" => false} }
+
   """
   @spec test(container, pointer, t, options) :: {:ok, t} | error_message
   def test(obj, pointer, value, options \\ @default_options) do
-    # with {:ok, result, existing} <- walk_container(:has, obj, pointer, nil, options)
-    #   is_equal <- are_equal?
-    #   do
-
-    #   else
-    #     {:error, msg, _ } -> {:error, msg}
-    #   end
-
     case walk_container(:get, obj, pointer, nil, options) do
       {:ok, result, _} ->
-        # IO.puts("are_equal?  #{pointer} => '#{value}' '#{result}'")
-
         case are_equal?(value, result) do
           {:ok, _} -> {:ok, obj}
           {:error, msg} -> {:error, msg}
@@ -153,26 +147,21 @@ defmodule JSONPointer do
     end
   end
 
-  # defp are_equal?(val1, val2) when is_binary(val1) and is_binary(val2),
-  #   do:
-  #     if(String.equivalent?(val1, val2), do: {:ok, true}, else: {:error, "string not equivalent"})
+  @doc """
+  Tests whether a JSON Pointer equals the given value, raises an error if they don't
 
-  defp are_equal?(val1, val2) when is_binary(val1) and is_number(val2),
-    do: {:error, "number is not equal to string"}
+  ## Examples
+    iex> JSONPointer.test!( %{ "milk" => "skimmed", "butter" => false}, "/butter", "unsalted" )
+    ** (ArgumentError) not equal
 
-  defp are_equal?(val1, val2) when is_number(val1) and is_binary(val2),
-    do: {:error, "string is not equal to number"}
-
-  defp are_equal?(val1, val2) do
-    if val1 == val2 do
-      {:ok, true}
-    else
-      are_not_equal_error(val1,val2)
+  """
+  @spec test!(container, pointer, t, options) :: t | no_return
+  def test!(obj, pointer, value, options \\ @default_options) do
+    case test(obj, pointer, value, options) do
+      {:ok, result} -> result
+      {:error, msg} -> raise ArgumentError, message: msg
     end
   end
-
-  defp are_not_equal_error(val1,val2) when is_binary(val1) and is_binary(val2), do: {:error, "string not equivalent"}
-  defp are_not_equal_error(_val1,_val2), do: {:error, "not equal"}
 
   @doc """
   Removes an attribute of object referenced by pointer
@@ -238,6 +227,9 @@ defmodule JSONPointer do
   Follows the JSON patch behaviour specified in rfc6902
 
   ## Examples
+      iex> JSONPointer.add( %{ "fridge" => [ "milk", "cheese" ] }, "/fridge/1", "salad")
+      {:ok, %{ "fridge" => [ "milk", "salad", "cheese" ]}, [ "milk", "cheese" ] }
+
       iex> JSONPointer.add( %{ "a" => %{"b" => %{}}}, "/a/b/c", ["foo", "bar"] )
       {:ok, %{"a" => %{"b" => %{"c" => ["foo", "bar"]}}}, nil}
   """
@@ -624,7 +616,8 @@ defmodule JSONPointer do
         if is_strict && (index < 0 || index > Enum.count(list)) do
           {:error, "index out of bounds: #{index}", list}
         else
-          {:ok, insert_into(list, index, value), Enum.at(list, index)}
+          # Enum.at(list, index)}
+          {:ok, insert_into(list, index, value), list}
         end
     end
   end
@@ -863,7 +856,6 @@ defmodule JSONPointer do
           if (operation == :get or operation == :has) and index >= Enum.count(list) do
             {:error, "index out of bounds: #{index}", list}
           else
-
             {res, sub, rem} =
               walk_container(
                 operation,
@@ -876,7 +868,10 @@ defmodule JSONPointer do
               )
 
             # a sublety of adding over setting
-            if operation == :add, do: {res, apply_into( list, index, sub ), list}, else: {res, sub, rem}
+            if operation == :add,
+              do: {res, apply_into(list, index, sub), list},
+              else: {res, sub, rem}
+
             # {res, [sub], list}
           end
       end

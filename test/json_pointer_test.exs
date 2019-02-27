@@ -1,6 +1,7 @@
 defmodule JSONPointerTest do
   use ExUnit.Case
   doctest JSONPointer
+  doctest JSONPointer.Utils
 
   defp rfc_data,
     do: %{
@@ -323,7 +324,7 @@ defmodule JSONPointerTest do
   describe "add" do
     test "add to list" do
       assert JSONPointer.add(%{"foo" => ["bar", "baz"]}, "/foo/1", "qux") ==
-               {:ok, %{"foo" => ["bar", "qux", "baz"]}, "baz"}
+               {:ok, %{"foo" => ["bar", "qux", "baz"]}, ["bar", "baz"] }
 
       # out of bounds (upper)
       assert JSONPointer.add(%{"bar" => [1, 2]}, "/bar/8", "5") ==
@@ -338,14 +339,14 @@ defmodule JSONPointerTest do
                {:ok, %{"foo" => 1, "0" => "bar"}, nil}
 
       assert JSONPointer.add(["foo"], "/1", "bar") ==
-               {:ok, ["foo", "bar"], nil}
+               {:ok, ["foo", "bar"], ["foo"] }
 
       #  object operation on array target
       assert JSONPointer.add(["foo", "baz"], "/bar", 42) ==
                {:error, "invalid index: bar", ["foo", "baz"]}
 
       assert JSONPointer.add(["foo", "sil"], "/1", ["bar", "baz"]) ==
-               {:ok, ["foo", ["bar", "baz"], "sil"], "sil"}
+               {:ok, ["foo", ["bar", "baz"], "sil"], ["foo", "sil"]}
 
       # add with bad number
       assert JSONPointer.add(["foo", "sil"], "/1e0", "bar") ==
@@ -581,16 +582,16 @@ defmodule JSONPointerTest do
         "abc" => "bla"
       }
 
-      assert JSONPointer.has!(obj, "/bla") == true
-      assert JSONPointer.has!(obj, "/foo/0/0") == true
-      assert JSONPointer.has!(obj, "/bla/test") == true
+      assert JSONPointer.has?(obj, "/bla") == true
+      assert JSONPointer.has?(obj, "/foo/0/0") == true
+      assert JSONPointer.has?(obj, "/bla/test") == true
 
-      assert JSONPointer.has!(obj, "/not-existing") == false
-      assert JSONPointer.has!(obj, "/not-existing/bla") == false
-      assert JSONPointer.has!(obj, "/test/1/bla") == false
-      assert JSONPointer.has!(obj, "/0") == false
-      assert JSONPointer.has!([], "/2") == false
-      assert JSONPointer.has!([], "/2/3") == false
+      assert JSONPointer.has?(obj, "/not-existing") == false
+      assert JSONPointer.has?(obj, "/not-existing/bla") == false
+      assert JSONPointer.has?(obj, "/test/1/bla") == false
+      assert JSONPointer.has?(obj, "/0") == false
+      assert JSONPointer.has?([], "/2") == false
+      assert JSONPointer.has?([], "/2/3") == false
     end
   end
 
