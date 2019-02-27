@@ -4,13 +4,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v3.0.0
 ### Added
 - add/add! - adds values indicated by pointers
 - options can be passed to operations. only option so far is :strict which affects set/add behaviour
-- test - checks whether the given pointer has the given value
+- added JSONPointer.test - checks whether the given pointer has the given value
 
 ### Changed
-- has changed to has? as it returns a single value
+- has changed to has? as it returns a single boolean
 - stricter parsing of integer indexes
 - increased terseness of error messages
 - remove now actually reduces the list size, rather than replace with nil
