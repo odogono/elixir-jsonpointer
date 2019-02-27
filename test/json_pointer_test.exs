@@ -350,6 +350,9 @@ defmodule JSONPointerTest do
       # add with bad number
       assert JSONPointer.add(["foo", "sil"], "/1e0", "bar") ==
                {:error, "invalid index: 1e0", ["foo", "sil"]}
+
+      assert JSONPointer.add(%{"foo" => ["bar"]}, "/foo/-", ["abc", "def"]) ==
+               {:ok, %{"foo" => ["bar", ["abc", "def"]]}, nil}
     end
 
     test "add to map" do
@@ -374,6 +377,14 @@ defmodule JSONPointerTest do
       # replacing root is possible with add
       assert JSONPointer.add(%{"foo" => "bar"}, "", %{"baz" => "qux"}) ==
                {:ok, %{"baz" => "qux"}, %{"foo" => "bar"}}
+
+      assert JSONPointer.add(%{"baz" => [%{"qux" => "hello"}], "foo" =>1}, "/baz/0/foo", "world") ==
+                {:ok, %{"baz" => [%{"foo"=>"world","qux" => "hello"}], "foo" =>1}, [%{"qux" => "hello"}] }
+
+      doc = [1,2,[3,[4,5]]]
+      assert JSONPointer.add!( doc, "/2/1/-", %{"foo" => ["bar","baz"]} ) ==
+        [1,2,[3,[4,5, %{"foo" => ["bar","baz"]}]]]
+
     end
   end
 
@@ -595,7 +606,7 @@ defmodule JSONPointerTest do
 
       assert JSONPointer.test(obj, "/fridge/milk", "semi skimmed") == {:ok, obj}
       assert JSONPointer.test(obj, "/fridge/milk", "skimmed") == {:error, "not equal"}
-      assert JSONPointer.test(obj, "/fridge/eggs", "5") == {:error, "string not equal to number"}
+      assert JSONPointer.test(obj, "/fridge/eggs", "5") == {:error, "number not equal to string"}
 
       assert JSONPointer.test(obj, "/fridge/salad", ["avocado", "spinach", "tomatoes"]) ==
                {:ok, obj}

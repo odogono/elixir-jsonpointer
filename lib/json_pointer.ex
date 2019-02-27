@@ -158,10 +158,10 @@ defmodule JSONPointer do
   #     if(String.equivalent?(val1, val2), do: {:ok, true}, else: {:error, "string not equivalent"})
 
   defp are_equal?(val1, val2) when is_binary(val1) and is_number(val2),
-    do: {:error, "string not equal to number"}
+    do: {:error, "number not equal to string"}
 
   defp are_equal?(val1, val2) when is_number(val1) and is_binary(val2),
-    do: {:error, "number not equal to string"}
+    do: {:error, "string not equal to number"}
 
   defp are_equal?(val1, val2) do
     if val1 == val2 do
@@ -614,6 +614,7 @@ defmodule JSONPointer do
 
     case parse_index(token) do
       {:error, msg} ->
+        # {:ok, apply_into( %{}, token, value), nil}
         {:error, msg, list}
 
       index ->
@@ -859,6 +860,7 @@ defmodule JSONPointer do
           if (operation == :get or operation == :has) and index >= Enum.count(list) do
             {:error, "index out of bounds: #{index}", list}
           else
+
             {res, sub, rem} =
               walk_container(
                 operation,
@@ -870,8 +872,9 @@ defmodule JSONPointer do
                 options
               )
 
-            # re-apply the returned result back into the current list - WHY!
-            {res, sub, rem}
+            # a sublety of adding over setting
+            if operation == :add, do: {res, apply_into( list, index, sub ), list}, else: {res, sub, rem}
+            # {res, [sub], list}
           end
       end
 
