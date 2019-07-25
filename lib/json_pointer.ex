@@ -84,6 +84,7 @@ defmodule JSONPointer do
       iex> JSONPointer.get( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
       {:error, "parent token not found: cake"}
 
+
   """
   @spec get(container, pointer) :: {:ok, t} | error_message
   def get(obj, pointer, options \\ @default_options) do
