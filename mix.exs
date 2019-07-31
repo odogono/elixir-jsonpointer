@@ -1,7 +1,7 @@
 defmodule JsonPointer.Mixfile do
   use Mix.Project
 
-  @version "3.0.0"
+  @version "3.0.1"
 
   def project do
     [
@@ -51,7 +51,7 @@ defmodule JsonPointer.Mixfile do
 
   defp package do
     [
-      name: "ODGN JSON Pointer",
+      name: "odgn_json_pointer",
       licenses: ["MIT"],
       maintainers: ["Alexander Veenendaal"],
       links: %{"GitHub" => "https://github.com/odogono/elixir-jsonpointer"},

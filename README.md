@@ -13,7 +13,7 @@ Add a dependency to your project `mix.exs`:
 
 ```Elixir
 def deps do
-  [{:odgn_json_pointer, "~> 3.0.0"}]
+  [{:odgn_json_pointer, "~> 3.0.1"}]
 end
 ```
 

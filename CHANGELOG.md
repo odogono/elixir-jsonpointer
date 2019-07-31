@@ -4,6 +4,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## v3.0.1
+### Fixed
+- crash when retrieving a path which contains a null value
+
+
 ## v3.0.0
 ### Added
 - add/add! - adds values indicated by pointers
