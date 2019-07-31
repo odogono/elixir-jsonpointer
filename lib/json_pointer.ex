@@ -80,6 +80,11 @@ defmodule JSONPointer do
 
       iex> JSONPointer.get( %{ "contents" => [ "milk", "butter", "eggs" ]}, "/contents/4" )
       {:error, "index out of bounds: 4"}
+
+      iex> JSONPointer.get( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
+      {:error, "parent token not found: cake"}
+
+
   """
   @spec get(container, pointer) :: {:ok, t} | error_message
   def get(obj, pointer, options \\ @default_options) do
@@ -98,6 +103,10 @@ defmodule JSONPointer do
       true
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
       ** (ArgumentError) json pointer key not found: fridge
+
+      iex> JSONPointer.get!( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
+      ** (ArgumentError) parent token not found: cake
+
   """
   @spec get!(container, pointer, options) :: t | no_return
   def get!(obj, pointer, options \\ @default_options) do
@@ -116,6 +125,9 @@ defmodule JSONPointer do
 
       iex> JSONPointer.has?( %{ "milk" => true, "butter" => false}, "/cornflakes" )
       false
+
+      iex> JSONPointer.has?( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
+      false
   """
   @spec has?(container, pointer, options) :: boolean
   def has?(obj, pointer, options \\ @default_options) do
@@ -132,6 +144,8 @@ defmodule JSONPointer do
     iex> JSONPointer.test( %{ "milk" => "skimmed", "butter" => false}, "/milk", "skimmed" )
     {:ok, %{ "milk" => "skimmed", "butter" => false} }
 
+    iex> JSONPointer.test( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
+    {:error, "parent token not found: cake"}
   """
   @spec test(container, pointer, t, options) :: {:ok, t} | error_message
   def test(obj, pointer, value, options \\ @default_options) do
@@ -154,6 +168,9 @@ defmodule JSONPointer do
     iex> JSONPointer.test!( %{ "milk" => "skimmed", "butter" => false}, "/butter", "unsalted" )
     ** (ArgumentError) not equal
 
+
+    iex> JSONPointer.test!( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
+    ** (ArgumentError) parent token not found: cake
   """
   @spec test!(container, pointer, t, options) :: t | no_return
   def test!(obj, pointer, value, options \\ @default_options) do
@@ -172,6 +189,9 @@ defmodule JSONPointer do
 
       iex> JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridge/sandwich" )
       {:error, "json pointer key not found: sandwich", %{ "butter" => true, "milk" => true}}
+
+      iex> JSONPointer.remove( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
+      {:error, "parent token not found: cake", nil}
   """
   @spec remove(container, pointer, options) :: {:ok, t, removed} | error_message
   def remove(object, pointer, options \\ @default_options) do
@@ -190,6 +210,7 @@ defmodule JSONPointer do
 
       iex> JSONPointer.set( %{"milk"=>"full"}, "/milk", "empty")
       {:ok, %{"milk" => "empty"}, "full"}
+
   """
   @spec set(container, pointer, t, options) :: {:ok, t, existing} | error_message
   def set(obj, pointer, value, options \\ @default_options) do
@@ -919,6 +940,11 @@ defmodule JSONPointer do
       end)
 
     {:ok, result, nil}
+  end
+
+  # stop walking the container if we hit a nil value
+  defp walk_container(_operation, _parent, nil, token, _tokens, _value, _options) do
+    {:error, "parent token not found: #{token}", nil}
   end
 
   defp next_result(
