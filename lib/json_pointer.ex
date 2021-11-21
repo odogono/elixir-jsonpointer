@@ -66,9 +66,10 @@ defmodule JSONPointer do
   @default_add_options %{:strict => true}
 
   @doc """
-  Retrieves the value indicated by the pointer from the object
+  Retrieves the value indicated by the pointer from the object.
 
   ## Examples
+
       iex> JSONPointer.get( %{ "fridge" => %{ "door" => "milk" } }, "/fridge/door" )
       {:ok, "milk"}
 
@@ -84,7 +85,6 @@ defmodule JSONPointer do
       iex> JSONPointer.get( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
       {:error, "parent token not found: cake"}
 
-
   """
   @spec get(container, pointer) :: {:ok, t} | error_message
   def get(obj, pointer, options \\ @default_options) do
@@ -96,9 +96,10 @@ defmodule JSONPointer do
 
   @doc """
   Retrieves the value indicated by the pointer from the object, raises
-  an error on exception
+  an error on exception.
 
   ## Examples
+
       iex> JSONPointer.get!( %{ "fridge" => %{ "milk" => true}}, "/fridge/milk" )
       true
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
@@ -117,9 +118,10 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Returns true if the given JSON Pointer resolves to a value
+  Returns true if the given JSON Pointer resolves to a value.
 
   ## Examples
+
       iex> JSONPointer.has?( %{ "milk" => true, "butter" => false}, "/butter" )
       true
 
@@ -128,6 +130,7 @@ defmodule JSONPointer do
 
       iex> JSONPointer.has?( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
       false
+
   """
   @spec has?(container, pointer, options) :: boolean
   def has?(obj, pointer, options \\ @default_options) do
@@ -138,14 +141,16 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Tests whether a JSON Pointer equals the given value
+  Tests whether a JSON Pointer equals the given value.
 
   ## Examples
-    iex> JSONPointer.test( %{ "milk" => "skimmed", "butter" => false}, "/milk", "skimmed" )
-    {:ok, %{ "milk" => "skimmed", "butter" => false} }
 
-    iex> JSONPointer.test( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
-    {:error, "parent token not found: cake"}
+      iex> JSONPointer.test( %{ "milk" => "skimmed", "butter" => false}, "/milk", "skimmed" )
+      {:ok, %{ "milk" => "skimmed", "butter" => false} }
+
+      iex> JSONPointer.test( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
+      {:error, "parent token not found: cake"}
+
   """
   @spec test(container, pointer, t, options) :: {:ok, t} | error_message
   def test(obj, pointer, value, options \\ @default_options) do
@@ -162,15 +167,16 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Tests whether a JSON Pointer equals the given value, raises an error if they don't
+  Tests whether a JSON Pointer equals the given value, raises an error if they don't.
 
   ## Examples
-    iex> JSONPointer.test!( %{ "milk" => "skimmed", "butter" => false}, "/butter", "unsalted" )
-    ** (ArgumentError) not equal
 
+      iex> JSONPointer.test!( %{ "milk" => "skimmed", "butter" => false}, "/butter", "unsalted" )
+      ** (ArgumentError) not equal
 
-    iex> JSONPointer.test!( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
-    ** (ArgumentError) parent token not found: cake
+      iex> JSONPointer.test!( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
+      ** (ArgumentError) parent token not found: cake
+
   """
   @spec test!(container, pointer, t, options) :: t | no_return
   def test!(obj, pointer, value, options \\ @default_options) do
@@ -181,9 +187,10 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Removes an attribute of object referenced by pointer
+  Removes an attribute of object referenced by pointer.
 
   ## Examples
+
       iex> JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridge/butter" )
       {:ok, %{"fridge" => %{"milk"=>true}}, true }
 
@@ -192,6 +199,7 @@ defmodule JSONPointer do
 
       iex> JSONPointer.remove( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
       {:error, "parent token not found: cake", nil}
+
   """
   @spec remove(container, pointer, options) :: {:ok, t, removed} | error_message
   def remove(object, pointer, options \\ @default_options) do
@@ -199,9 +207,10 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Sets a new value on object at the location described by pointer
+  Sets a new value on object at the location described by pointer.
 
   ## Examples
+
       iex> JSONPointer.set( %{}, "/example/msg", "hello")
       {:ok, %{ "example" => %{ "msg" => "hello" }}, nil }
 
@@ -222,9 +231,10 @@ defmodule JSONPointer do
 
   @doc """
   Sets a new value on object at the location described by pointer, raises
-  an error on exception
+  an error on exception.
 
   ## Examples
+
       iex> JSONPointer.set!( %{}, "/example/msg", "hello")
       %{ "example" => %{ "msg" => "hello" }}
 
@@ -233,6 +243,7 @@ defmodule JSONPointer do
 
       iex> JSONPointer.set!( %{"milk"=>"full"}, "/milk", "empty")
       %{"milk" => "empty"}
+
   """
   @spec set!(container, pointer, t, options) :: t | no_return
   def set!(obj, pointer, value, options \\ @default_options) do
@@ -243,16 +254,18 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Adds a value using the given pointer
+  Adds a value using the given pointer.
 
-  Follows the JSON patch behaviour specified in rfc6902
+  Follows the JSON patch behaviour specified in RFC6902.
 
   ## Examples
+
       iex> JSONPointer.add( %{ "fridge" => [ "milk", "cheese" ] }, "/fridge/1", "salad")
       {:ok, %{ "fridge" => [ "milk", "salad", "cheese" ]}, [ "milk", "cheese" ] }
 
       iex> JSONPointer.add( %{ "a" => %{"b" => %{}}}, "/a/b/c", ["foo", "bar"] )
       {:ok, %{"a" => %{"b" => %{"c" => ["foo", "bar"]}}}, nil}
+
   """
   @spec add(container, pointer, t) :: {:ok, t, existing} | error_message
   def add(obj, pointer, value, options \\ @default_add_options) do
@@ -263,11 +276,13 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Adds a value using the given pointer, raises an error on exception
+  Adds a value using the given pointer, raises an error on exception.
 
   ## Examples
+
       iex> JSONPointer.add!( %{ "a" => %{ "foo"  => 1 } }, "/a/b", true )
       %{"a" => %{"foo" => 1, "b" => true}}
+
   """
   @spec add!(container, pointer, t) :: t | no_return
   def add!(obj, pointer, value, options \\ @default_add_options) do
@@ -278,9 +293,10 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Extracts a list of JSON pointer paths from the given object
+  Extracts a list of JSON pointer paths from the given object.
 
   ## Examples
+
       iex> JSONPointer.dehydrate( %{"a"=>%{"b"=>["c","d"]}} )
       {:ok, [{"/a/b/0", "c"}, {"/a/b/1", "d"}] }
 
@@ -295,9 +311,10 @@ defmodule JSONPointer do
 
   @doc """
   Extracts a list of JSON pointer paths from the given object, raises
-  an error on exception
+  an error on exception.
 
   ## Examples
+
       iex> JSONPointer.dehydrate!( %{"a"=>%{"b"=>["c","d"]}} )
       [{"/a/b/0", "c"}, {"/a/b/1", "d"}]
 
@@ -311,7 +328,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Applies the given list of paths to the given container
+  Applies the given list of paths to the given container.
 
   ## Examples
 
@@ -337,7 +354,7 @@ defmodule JSONPointer do
 
   @doc """
   Applies the given list of paths to the given container, raises an exception
-  on error
+  on error.
 
   ## Examples
 
@@ -354,12 +371,13 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Returns the given list of paths applied to a container
+  Returns the given list of paths applied to a container.
 
   ## Examples
 
       iex> JSONPointer.hydrate( [ {"/a/1/b", "single"} ] )
       {:ok, %{"a" => %{"1" => %{"b" => "single"}}}}
+
   """
   @spec hydrate(pointer_list) :: {:ok, container} | error_message
   def hydrate(pointer_list) do
@@ -368,7 +386,7 @@ defmodule JSONPointer do
 
   @doc """
   Returns the given list of paths applied to a container, raises an exception
-  on error
+  on error.
 
   ## Examples
 
@@ -385,7 +403,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Merges the incoming dst object into src
+  Merges the incoming dst object into src.
 
   ## Examples
 
@@ -403,8 +421,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Merges the incoming dst object into src, raises
-  an error on exception
+  Merges the incoming dst object into src, raises an error on exception.
 
   ## Examples
 
@@ -424,7 +441,7 @@ defmodule JSONPointer do
   end
 
   @doc """
-  Applies a mapping of source paths to destination paths in the result
+  Applies a mapping of source paths to destination paths in the result.
 
   The mapping can optionally include a function which transforms the source
   value before it is applied to the result.
@@ -454,7 +471,7 @@ defmodule JSONPointer do
 
   @doc """
   Applies a mapping of source paths to destination paths in the result, raises an
-  error on exception
+  error on exception.
 
   The mapping can optionally include a function which transforms the source
   value before it is applied to the result.
@@ -590,9 +607,6 @@ defmodule JSONPointer do
   # leaf operation: set token to value on a map
   defp walk_container(operation, _parent, map, token, tokens, value, _options)
        when is_add_set_map(operation, map, tokens) do
-    # IO.puts("uhh #{token}")
-    # IO.inspect(map)
-
     case Map.fetch(map, token) do
       {:ok, existing} ->
         {:ok, apply_into(map, token, value), existing}
