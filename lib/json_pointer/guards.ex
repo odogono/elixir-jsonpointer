@@ -34,6 +34,10 @@ defmodule JSONPointer.Guards do
   defguard is_get_list(operation, list, tokens)
            when (operation == :has or operation == :get) and tokens == [] and is_list(list)
 
+  defguard is_get_container(operation, container)
+           when (operation == :has or operation == :get) and not is_list(container) and
+                  not is_map(container)
+
   defguard is_set_map_no_tokens(operation, map)
            when operation == :set and is_map(map)
 

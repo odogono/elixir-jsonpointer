@@ -91,7 +91,7 @@ defmodule JSONPointerTest do
       assert JSONPointer.get(rfc_data(), "#/a~1b") == {:ok, 1}
 
       # this library used to support escaped uri fragments, but this was not spec compliant and so removed
-      assert JSONPointer.get(rfc_data(), "#/c%25d") == {:error, "token not found: c%25d"}
+      assert JSONPointer.get(rfc_data(), "#/c%25d") == {:error, "key not found: /c%25d"}
     end
 
     test "get expanded" do
@@ -141,17 +141,24 @@ defmodule JSONPointerTest do
 
       assert JSONPointer.get(data, "/store/**") == {:ok, data["store"]}
 
-      assert JSONPointer.get(data, "/store/**/**") == {:error, "token not found: **"}
+      assert JSONPointer.get(data, "/store/**/**") == {:error, "key not found: /**"}
 
       assert JSONPointer.get(data, "/store/book/**") == {:ok, data["store"]["book"]}
 
       assert JSONPointer.get(data, "/store/book") == {:ok, data["store"]["book"]}
 
-      assert JSONPointer.get(data, "/**/nothing") == {:error, "token not found: nothing"}
+      assert JSONPointer.get(data, "/**/nothing") == {:error, "key not found: /nothing"}
 
-      assert_raise ArgumentError, "token not found: newspaper", fn ->
+      assert_raise ArgumentError, "key not found: /newspaper", fn ->
         JSONPointer.get!(data, "/**/newspaper")
       end
+    end
+
+    test "get on invalid container" do
+      data =
+        Jason.decode!(~s({"one":1,"two":2,"array":[1,2,3], "dict":{"four": "4", "five": "5"}}))
+
+      assert JSONPointer.get(data, "/array/0/1") == {:error, "key not found: /1"}
     end
   end
 
@@ -324,7 +331,7 @@ defmodule JSONPointerTest do
   describe "add" do
     test "add to list" do
       assert JSONPointer.add(%{"foo" => ["bar", "baz"]}, "/foo/1", "qux") ==
-               {:ok, %{"foo" => ["bar", "qux", "baz"]}, ["bar", "baz"] }
+               {:ok, %{"foo" => ["bar", "qux", "baz"]}, ["bar", "baz"]}
 
       # out of bounds (upper)
       assert JSONPointer.add(%{"bar" => [1, 2]}, "/bar/8", "5") ==
@@ -339,7 +346,7 @@ defmodule JSONPointerTest do
                {:ok, %{"foo" => 1, "0" => "bar"}, nil}
 
       assert JSONPointer.add(["foo"], "/1", "bar") ==
-               {:ok, ["foo", "bar"], ["foo"] }
+               {:ok, ["foo", "bar"], ["foo"]}
 
       #  object operation on array target
       assert JSONPointer.add(["foo", "baz"], "/bar", 42) ==
@@ -379,13 +386,14 @@ defmodule JSONPointerTest do
       assert JSONPointer.add(%{"foo" => "bar"}, "", %{"baz" => "qux"}) ==
                {:ok, %{"baz" => "qux"}, %{"foo" => "bar"}}
 
-      assert JSONPointer.add(%{"baz" => [%{"qux" => "hello"}], "foo" =>1}, "/baz/0/foo", "world") ==
-                {:ok, %{"baz" => [%{"foo"=>"world","qux" => "hello"}], "foo" =>1}, [%{"qux" => "hello"}] }
+      assert JSONPointer.add(%{"baz" => [%{"qux" => "hello"}], "foo" => 1}, "/baz/0/foo", "world") ==
+               {:ok, %{"baz" => [%{"foo" => "world", "qux" => "hello"}], "foo" => 1},
+                [%{"qux" => "hello"}]}
 
-      doc = [1,2,[3,[4,5]]]
-      assert JSONPointer.add!( doc, "/2/1/-", %{"foo" => ["bar","baz"]} ) ==
-        [1,2,[3,[4,5, %{"foo" => ["bar","baz"]}]]]
+      doc = [1, 2, [3, [4, 5]]]
 
+      assert JSONPointer.add!(doc, "/2/1/-", %{"foo" => ["bar", "baz"]}) ==
+               [1, 2, [3, [4, 5, %{"foo" => ["bar", "baz"]}]]]
     end
   end
 
@@ -607,7 +615,9 @@ defmodule JSONPointerTest do
 
       assert JSONPointer.test(obj, "/fridge/milk", "semi skimmed") == {:ok, obj}
       assert JSONPointer.test(obj, "/fridge/milk", "skimmed") == {:error, "string not equivalent"}
-      assert JSONPointer.test(obj, "/fridge/eggs", "5") == {:error, "number is not equal to string"}
+
+      assert JSONPointer.test(obj, "/fridge/eggs", "5") ==
+               {:error, "number is not equal to string"}
 
       assert JSONPointer.test(obj, "/fridge/salad", ["avocado", "spinach", "tomatoes"]) ==
                {:ok, obj}
