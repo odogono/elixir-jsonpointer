@@ -51,7 +51,7 @@ defmodule JSONPointer do
   @type transform_mapping ::
           {pointer, pointer}
           | {pointer, pointer, transform_fn}
-          | {pointer, (() -> any())}
+          | {pointer, (-> any())}
 
   @typep strict :: boolean
 
@@ -77,13 +77,13 @@ defmodule JSONPointer do
       {:ok, "eggs"}
 
       iex> JSONPointer.get( %{ "milk" => true, "butter" => false}, "/cornflakes" )
-      {:error, "token not found: cornflakes"}
+      {:error, "key not found: /cornflakes"}
 
       iex> JSONPointer.get( %{ "contents" => [ "milk", "butter", "eggs" ]}, "/contents/4" )
       {:error, "index out of bounds: 4"}
 
       iex> JSONPointer.get( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
-      {:error, "parent token not found: cake"}
+      {:error, "key not found: /cake"}
 
   """
   @spec get(container, pointer) :: {:ok, t} | error_message
@@ -103,10 +103,10 @@ defmodule JSONPointer do
       iex> JSONPointer.get!( %{ "fridge" => %{ "milk" => true}}, "/fridge/milk" )
       true
       iex> JSONPointer.get!( %{}, "/fridge/milk" )
-      ** (ArgumentError) json pointer key not found: fridge
+      ** (ArgumentError) key not found: /fridge
 
       iex> JSONPointer.get!( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
-      ** (ArgumentError) parent token not found: cake
+      ** (ArgumentError) key not found: /cake
 
   """
   @spec get!(container, pointer, options) :: t | no_return
@@ -149,7 +149,7 @@ defmodule JSONPointer do
       {:ok, %{ "milk" => "skimmed", "butter" => false} }
 
       iex> JSONPointer.test( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
-      {:error, "parent token not found: cake"}
+      {:error, "key not found: /cake"}
 
   """
   @spec test(container, pointer, t, options) :: {:ok, t} | error_message
@@ -175,7 +175,7 @@ defmodule JSONPointer do
       ** (ArgumentError) not equal
 
       iex> JSONPointer.test!( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake", "true" )
-      ** (ArgumentError) parent token not found: cake
+      ** (ArgumentError) key not found: /cake
 
   """
   @spec test!(container, pointer, t, options) :: t | no_return
@@ -195,10 +195,10 @@ defmodule JSONPointer do
       {:ok, %{"fridge" => %{"milk"=>true}}, true }
 
       iex> JSONPointer.remove( %{"fridge" => %{ "milk" => true, "butter" => true}}, "/fridge/sandwich" )
-      {:error, "json pointer key not found: sandwich", %{ "butter" => true, "milk" => true}}
+      {:error, "key not found: /sandwich", %{ "butter" => true, "milk" => true}}
 
       iex> JSONPointer.remove( %{ "fridge" => %{ "cake" => true }, "stove" => nil}, "/stove/cake" )
-      {:error, "parent token not found: cake", nil}
+      {:error, "key not found: /cake", nil}
 
   """
   @spec remove(container, pointer, options) :: {:ok, t, removed} | error_message
@@ -435,8 +435,9 @@ defmodule JSONPointer do
   @spec merge!(container, container) :: container | no_return
   def merge!(src, dst) do
     case merge(src, dst) do
-      {:ok, result} -> result
-      {:error, msg} -> raise ArgumentError, message: msg
+      {:ok, result} ->
+        result
+        # {:error, msg} -> raise ArgumentError, message: msg
     end
   end
 
@@ -452,7 +453,7 @@ defmodule JSONPointer do
       {:ok, %{"count" => 8, "valid" => true}}
 
   """
-  @spec transform(map(), transform_mapping) :: map()
+  @spec transform(map(), transform_mapping) :: {:ok, map()}
   def transform(src, mapping) do
     result =
       Enum.reduce(mapping, %{}, fn
@@ -482,11 +483,12 @@ defmodule JSONPointer do
       %{"count" => 10, "valid" => true}
 
   """
-  @spec transform!(map(), transform_mapping) :: map()
+  @spec transform!(map(), transform_mapping) :: map() | no_return
   def transform!(src, mapping) do
     case transform(src, mapping) do
-      {:ok, result} -> result
-      {:error, msg} -> raise ArgumentError, message: msg
+      {:ok, result} ->
+        result
+        # {:error, msg} -> raise ArgumentError, message: msg
     end
   end
 
@@ -564,7 +566,7 @@ defmodule JSONPointer do
         {:ok, Map.delete(map, token), existing}
 
       :error ->
-        {:error, "json pointer key not found: #{token}", map}
+        {:error, "key not found: /#{token}", map}
     end
   end
 
@@ -713,8 +715,13 @@ defmodule JSONPointer do
         {:ok, existing, nil}
 
       :error ->
-        {:error, "token not found: #{token}", map}
+        {:error, "key not found: /#{token}", map}
     end
+  end
+
+  defp walk_container(operation, _parent, container, token, _tokens, _value, _options)
+       when is_get_container(operation, container) do
+    {:error, "key not found: /#{token}", container}
   end
 
   # leaf operation: does list have index?
@@ -794,7 +801,7 @@ defmodule JSONPointer do
   #
   defp walk_container(_operation, _parent, map, "**", tokens, _value, _options) do
     [next_token | _] = tokens
-    {:error, "token not found: #{next_token}", map}
+    {:error, "key not found: /#{next_token}", map}
   end
 
   # recursively walk through a map container
@@ -842,7 +849,7 @@ defmodule JSONPointer do
                 walk_container(operation, map, %{}, next_token, next_tokens, value, options)
 
             _ ->
-              {:error, "json pointer key not found: #{token}", map}
+              {:error, "key not found: /#{token}", map}
           end
       end
 
@@ -906,8 +913,6 @@ defmodule JSONPointer do
             if operation == :add,
               do: {res, apply_into(list, index, sub), list},
               else: {res, sub, rem}
-
-            # {res, [sub], list}
           end
       end
 
@@ -932,6 +937,11 @@ defmodule JSONPointer do
     end
   end
 
+  # stop walking the container if we hit a nil value
+  defp walk_container(_operation, _parent, nil, token, _tokens, _value, _options) do
+    {:error, "key not found: /#{token}", nil}
+  end
+
   defp next_result(:error, operation, map, "**", next_token, next_tokens, value, options)
        when is_set_map_no_tokens(operation, map) do
     result =
@@ -954,11 +964,6 @@ defmodule JSONPointer do
       end)
 
     {:ok, result, nil}
-  end
-
-  # stop walking the container if we hit a nil value
-  defp walk_container(_operation, _parent, nil, token, _tokens, _value, _options) do
-    {:error, "parent token not found: #{token}", nil}
   end
 
   defp next_result(
@@ -991,7 +996,7 @@ defmodule JSONPointer do
       end)
 
     if List.first(result) == nil do
-      {:error, "token not found: #{next_token}", result}
+      {:error, "key not found: /#{next_token}", result}
     else
       {:ok, result, nil}
     end

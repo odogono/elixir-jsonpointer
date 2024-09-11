@@ -20,12 +20,17 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-odgn_json_pointer-*.tar
+elixir_jason_test-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
-
-# Misc.
 *~
+
+# Ignore macOS files
 .DS_Store
-node_modules
+
+# Ignore editor files
+.elixir_ls
+
+# Ignore vscode files
+.vscode

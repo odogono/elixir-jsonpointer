@@ -17,7 +17,7 @@ Add a dependency to your project `mix.exs`:
 ```elixir
 def deps do
   [
-    {:odgn_json_pointer, "~> 3.0.1"}
+    {:odgn_json_pointer, "~> 3.1.0"}
   ]
 end
 ```
@@ -69,7 +69,7 @@ Made in Exeter, UK.
 
 ## Copyright and License
 
-Copyright (c) 2019 Alexander Veenendaal
+Copyright (c) 2024 Alexander Veenendaal
 
 This work is free. You can redistribute it and/or modify it under the
 terms of the MIT License. See the [LICENSE.md](./LICENSE.md) file for more details.

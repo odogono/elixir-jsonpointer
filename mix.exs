@@ -2,7 +2,7 @@ defmodule JsonPointer.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/odogono/elixir-jsonpointer"
-  @version "3.0.1"
+  @version "3.1.0"
 
   def project do
     [
@@ -11,27 +11,33 @@ defmodule JsonPointer.Mixfile do
       version: @version,
       package: package(),
       deps: deps(),
+      description: description(),
       dialyzer: dialyzer(),
       docs: docs(),
-      elixir: "~> 1.6",
+      elixir: "~> 1.17",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod
     ]
   end
 
-  # Configuration for the OTP application
-  #
-  # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger]]
+    [
+      extra_applications: [:logger]
+    ]
+  end
+
+  defp description do
+    """
+    An implementation of JSON Pointer (RFC 6901)
+    """
   end
 
   defp deps do
     [
-      {:credo, "~> 1.0.0", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
-      {:jason, "~> 1.1.2", only: [:dev, :test]}
+      {:credo, "~> 1.7.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4.3", only: [:dev, :test], runtime: false},
+      {:ex_doc, ">= 0.34.2", only: :dev, runtime: false},
+      {:jason, "~> 1.4", only: [:dev, :test]}
     ]
   end
 

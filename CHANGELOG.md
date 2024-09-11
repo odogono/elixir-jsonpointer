@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+
+## v3.1.0 (2024-09-11)
+### Changed
+- updated package dependencies
+- error handling for get on invalid containers
+- error message format changed to be more consistent
+
 ## v3.0.1 (2019-07-31)
 ### Fixed
 - crash when retrieving a path which contains a null value
