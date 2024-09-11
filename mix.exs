@@ -1,6 +1,7 @@
 defmodule JsonPointer.Mixfile do
   use Mix.Project
 
+  @source_url "https://github.com/odogono/elixir-jsonpointer"
   @version "3.0.1"
 
   def project do
@@ -8,15 +9,13 @@ defmodule JsonPointer.Mixfile do
       app: :odgn_json_pointer,
       name: "JSON Pointer",
       version: @version,
-      description: description(),
       package: package(),
       deps: deps(),
       dialyzer: dialyzer(),
       docs: docs(),
       elixir: "~> 1.6",
       build_embedded: Mix.env() == :prod,
-      start_permanent: Mix.env() == :prod,
-      source_url: "https://github.com/odogono/elixir-jsonpointer"
+      start_permanent: Mix.env() == :prod
     ]
   end
 
@@ -31,9 +30,8 @@ defmodule JsonPointer.Mixfile do
     [
       {:credo, "~> 1.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
-      {:earmark, "~> 1.3.1", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.19.2", only: :dev, runtime: false},
-      {:jason, "~> 1.1.2", only: [:dev, :test]},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:jason, "~> 1.1.2", only: [:dev, :test]}
     ]
   end
 
@@ -43,26 +41,31 @@ defmodule JsonPointer.Mixfile do
     ]
   end
 
-  defp description do
-    """
-    This is an implementation of JSON Pointer (RFC 6901) for Elixir.
-    """
-  end
-
   defp package do
     [
       name: "odgn_json_pointer",
+      description: "This is an implementation of JSON Pointer (RFC 6901) for Elixir.",
       licenses: ["MIT"],
       maintainers: ["Alexander Veenendaal"],
-      links: %{"GitHub" => "https://github.com/odogono/elixir-jsonpointer"},
-      files: ["lib", "mix.exs", "README.md", "LICENSE"]
+      files: ["lib", "mix.exs", "README.md", "LICENSE.md"],
+      links: %{
+        "Changelog" => "https://hexdocs.pm/odgn_json_pointer/changelog.html",
+        "GitHub" => @source_url
+      }
     ]
   end
 
   defp docs do
     [
+      extras: [
+        "CHANGELOG.md": [],
+        "LICENSE.md": [title: "License"],
+        "README.md": [title: "Overview"]
+      ],
       main: "readme",
-      extras: ["README.md"]
+      source_url: @source_url,
+      source_ref: "v#{@version}",
+      formatters: ["html"]
     ]
   end
 end
